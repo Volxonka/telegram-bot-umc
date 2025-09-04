@@ -1,0 +1,57 @@
+{
+  "р2": [
+    {
+      "id": 1,
+      "user_id": 665509323,
+      "question": "что делать если я тупой еблан и ничего не знаю?",
+      "answer": "поставь мне чайник",
+      "answered_by": 943915529,
+      "timestamp": "2025-09-02 21:13:52.982291",
+      "status": "answered",
+      "answer_timestamp": "2025-09-02 21:14:41.848509"
+    }
+  ],
+  "ж1": [
+    {
+      "id": 1,
+      "user_id": 1617448796,
+      "question": "Тема ты",
+      "answer": "салам",
+      "answered_by": 665509323,
+      "timestamp": "2025-09-02 22:10:22.958306",
+      "status": "answered",
+      "answer_timestamp": "2025-09-02 22:10:51.143898"
+    },
+    {
+      "id": 2,
+      "user_id": 1617448796,
+      "question": "Привет",
+      "answer": "что",
+      "answered_by": 665509323,
+      "timestamp": "2025-09-03 20:57:58.819472",
+      "status": "answered",
+      "answer_timestamp": "2025-09-03 20:59:07.104076"
+    },
+    {
+      "id": 3,
+      "user_id": 1617448796,
+      "question": "Что такое ауе",
+      "answer": "poshel naxyi",
+      "answered_by": 665509323,
+      "timestamp": "2025-09-03 23:30:56.904695",
+      "status": "answered",
+      "answer_timestamp": "2025-09-03 23:31:12.742558"
+    }
+  ],
+  "р1": [
+    {
+      "id": 1,
+      "user_id": 526139461,
+      "question": "мена",
+      "answer": null,
+      "answered_by": null,
+      "timestamp": "2025-09-03 21:17:15.313512",
+      "status": "pending"
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "ж1": [
+    {
+      "full_name": "Отправьте текстовый список студентов для группы Ж1 одной последующей сообщением.",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Каждая строка – один студент. Номера в начале строк можно не удалять.",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "/import_students ж1",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Ахвердова Елизавета Артуровна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Вишня Александра Владимировна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Горбань Анастасия Александровна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Гордеева Полина Сергеевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Дзукаева Адриана Вадимовна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Дьякова Софья Евгеньевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Еремеева Анна Николаевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Ермолаев Матвей Алексеевич",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Ионова Валерия Романовна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Кайманова Елизавета Алексеевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Киселев Иван Александрович",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Ксенофонтов Леонид Алексеевич",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Михеева Валерия Фёдоровна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Молокова София Витальевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Монастырев Алексей Алексеевич",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Наумкина Екатерина Львовна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Опритова Елизавета Андреевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Парис Вероника Сергеевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Пискарева Агата Алексеевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Родионов Артём Александрович",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Русанова Анна Максимовна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Сафронов Илья Александрович",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Сергиенко Арина Сергеевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Солончев Александр Константинович",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Тумакова Екатерина Юрьевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Тункин Сергей Владимирович",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Чиркова Елизавета Эдуардовна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Шмелева Арина Сергеевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Охотников Игорь Анатольевич",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": "Силаева Анна Алексеевна",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "user_id": 8113979210,
+      "username": "life_slow",
+      "full_name": "Родионов Артём Александрович"
+    },
+    {
+      "user_id": 1617448796,
+      "username": "gurenych",
+      "full_name": "Гуренко Всеволод Александрович"
+    }
+  ],
+  "ж3": [
+    {
+      "full_name": ") Всеволод Гуренко Александрович",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": ") Карина Новикова",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": ") Ульяна не знаю фамилию",
+      "user_id": null,
+      "username": null
+    },
+    {
+      "full_name": ") Злата какая-то",
+      "user_id": null,
+      "username": null
+    }
+  ]
+}

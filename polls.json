@@ -1,0 +1,21 @@
+{
+  "ж1_1756928002": {
+    "group": "ж1",
+    "curator_id": 665509323,
+    "created_at": "2025-09-03 22:33:22.353255",
+    "duration_minutes": 1,
+    "status": "closed",
+    "responses": {
+      "665509323": {
+        "status": "present",
+        "reason": "",
+        "timestamp": "2025-09-03 22:33:26.090570"
+      },
+      "8113979210": {
+        "status": "present",
+        "reason": "",
+        "timestamp": "2025-09-03 22:34:20.413587"
+      }
+    }
+  }
+}

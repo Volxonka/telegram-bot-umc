@@ -1,0 +1,40 @@
+{
+  "1408151201": {
+    "username": "wkidsx",
+    "group": "р1",
+    "is_curator": true,
+    "last_screen": "menu_р1"
+  },
+  "526139461": {
+    "username": "di4444umi",
+    "group": "р1",
+    "is_curator": false,
+    "last_screen": "ask_question_р1"
+  },
+  "943915529": {
+    "username": "wawkieee",
+    "group": "р2",
+    "is_curator": false,
+    "last_screen": "menu_р2"
+  },
+  "665509323": {
+    "username": "Meep4anskiy",
+    "group": "ж1",
+    "is_curator": true,
+    "last_screen": "menu_ж1"
+  },
+  "8113979210": {
+    "username": "life_slow",
+    "group": "ж1",
+    "is_curator": false,
+    "last_screen": "view_schedule_ж1",
+    "full_name": "Родионов Артём Александрович"
+  },
+  "1617448796": {
+    "username": "gurenych",
+    "group": "ж1",
+    "is_curator": false,
+    "last_screen": "ask_question_ж1",
+    "full_name": "Гуренко Всеволод Александрович"
+  }
+}

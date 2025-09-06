@@ -263,7 +263,7 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
         # Проверяем, является ли пользователь куратором
         if db.is_curator(user_id, group):
             # Кураторы регистрируются без запроса ФИО
-        db.add_user(user_id, username, group)
+            db.add_user(user_id, username, group)
             await query.edit_message_text(
                 f"🎉 **Круто! Теперь ты часть цивилизации!** 🎉\n\n"
                 f"👨‍🏫 **Роль:** Куратор\n"

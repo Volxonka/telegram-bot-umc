@@ -263,7 +263,7 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
         # Проверяем, является ли пользователь куратором
         if db.is_curator(user_id, group):
             # Кураторы регистрируются без запроса ФИО
-            db.add_user(user_id, username, group)
+        db.add_user(user_id, username, group)
             await query.edit_message_text(
                 f"🎉 **Круто! Теперь ты часть цивилизации!** 🎉\n\n"
                 f"👨‍🏫 **Роль:** Куратор\n"
@@ -276,7 +276,7 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
                 f"• ❓ Отвечать на вопросы\n\n"
                 f"**Выбери действие в меню ниже:** ⬇️"
             )
-            await show_main_menu(update, context, group)
+        await show_main_menu(update, context, group)
         else:
             # Для всех студентов запрашиваем ФИО при регистрации
             context.user_data['waiting_for_full_name'] = True
@@ -333,7 +333,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
     
     if update.callback_query:
         try:
-            await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
+        await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
         except Exception:
             # Если не удается отредактировать (например, сообщение уже удалено), отправляем новое
             await context.bot.send_message(
@@ -433,7 +433,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.caption if (has_photo or has_document) else update.message.text
     
     if waiting_for.startswith("schedule_"):
-        # Проверяем права куратора для расписания
+            # Проверяем права куратора для расписания
         if not db.is_curator(user_id, target_group):
             await update.message.reply_text("❌ У вас нет прав для отправки расписания в эту группу!")
             return
@@ -676,8 +676,8 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not current_group or current_group != group:
         # Пользователь сменил группу или не зарегистрирован
         try:
-            await query.edit_message_text(
-                "❌ **Ошибка навигации**\n\n"
+        await query.edit_message_text(
+            "❌ **Ошибка навигации**\n\n"
                 "Ваша группа изменилась или вы не зарегистрированы.\n"
                 "Используйте /start для повторной регистрации."
             )
@@ -686,9 +686,9 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=user_id,
                 text="❌ **Ошибка навигации**\n\n"
-                     "Ваша группа изменилась или вы не зарегистрированы.\n"
-                     "Используйте /start для повторной регистрации."
-            )
+            "Ваша группа изменилась или вы не зарегистрированы.\n"
+            "Используйте /start для повторной регистрации."
+        )
         return
     
     await show_main_menu(update, context, group)
@@ -743,16 +743,16 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.delete_message()
         else:
             # Обычное текстовое расписание
-            text = f"📅 **Расписание группы {GROUPS[group]}**\n\n"
+        text = f"📅 **Расписание группы {GROUPS[group]}**\n\n"
             text += f"{latest_schedule['content']}\n\n"
             text += f"📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
-            
-            keyboard = [
+    
+    keyboard = [
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
-            ]
+    ]
             reply_markup = with_home_button(keyboard, group)
-            
-            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+    
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def view_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает объявления группы"""
@@ -1798,4 +1798,32 @@ def main():
     application.run_polling()
 
 if __name__ == '__main__':
+    # Для Render Web Service - открываем порт
+    import os
+    port = int(os.environ.get('PORT', 8080))
+    
+    # Запускаем бота в фоне
+    import asyncio
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'Bot is running')
+        
+        def log_message(self, format, *args):
+            pass  # Отключаем логи HTTP сервера
+    
+    # Запускаем HTTP сервер в отдельном потоке
+    def run_server():
+        server = HTTPServer(('0.0.0.0', port), Handler)
+        server.serve_forever()
+    
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    
+    # Запускаем бота
     main()

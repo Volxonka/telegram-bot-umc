@@ -333,7 +333,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
     
     if update.callback_query:
         try:
-        await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
+            await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
         except Exception:
             # Если не удается отредактировать (например, сообщение уже удалено), отправляем новое
             await context.bot.send_message(
@@ -676,8 +676,8 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not current_group or current_group != group:
         # Пользователь сменил группу или не зарегистрирован
         try:
-        await query.edit_message_text(
-            "❌ **Ошибка навигации**\n\n"
+            await query.edit_message_text(
+                "❌ **Ошибка навигации**\n\n"
                 "Ваша группа изменилась или вы не зарегистрированы.\n"
                 "Используйте /start для повторной регистрации."
             )
@@ -686,9 +686,9 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=user_id,
                 text="❌ **Ошибка навигации**\n\n"
-            "Ваша группа изменилась или вы не зарегистрированы.\n"
-            "Используйте /start для повторной регистрации."
-        )
+                "Ваша группа изменилась или вы не зарегистрированы.\n"
+                "Используйте /start для повторной регистрации."
+            )
         return
     
     await show_main_menu(update, context, group)
@@ -743,13 +743,13 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.delete_message()
         else:
             # Обычное текстовое расписание
-        text = f"📅 **Расписание группы {GROUPS[group]}**\n\n"
+            text = f"📅 **Расписание группы {GROUPS[group]}**\n\n"
             text += f"{latest_schedule['content']}\n\n"
             text += f"📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
     
-    keyboard = [
+            keyboard = [
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
-    ]
+            ]
             reply_markup = with_home_button(keyboard, group)
     
     await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')

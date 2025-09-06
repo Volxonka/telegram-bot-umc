@@ -276,7 +276,7 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
                 f"• ❓ Отвечать на вопросы\n\n"
                 f"**Выбери действие в меню ниже:** ⬇️"
             )
-        await show_main_menu(update, context, group)
+            await show_main_menu(update, context, group)
         else:
             # Для всех студентов запрашиваем ФИО при регистрации
             context.user_data['waiting_for_full_name'] = True

@@ -342,7 +342,15 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
                 reply_markup=reply_markup
             )
     else:
-        await update.message.reply_text(title, reply_markup=reply_markup)
+        try:
+            await update.message.reply_text(title, reply_markup=reply_markup)
+        except Exception:
+            # Резервный канал на случай таймаута
+            await context.bot.send_message(
+                chat_id=update.effective_user.id,
+                text=title,
+                reply_markup=reply_markup
+            )
 
 async def handle_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает отправку расписания"""
@@ -1741,7 +1749,16 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     """Запуск бота"""
     # Создаем приложение
-    application = Application.builder().token(BOT_TOKEN).build()
+    # Настраиваем таймауты и пулинг для Render
+    application = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .read_timeout(30)
+        .write_timeout(30)
+        .connect_timeout(30)
+        .pool_timeout(30)
+        .build()
+    )
     
     # Глобальный обработчик ошибок
     application.add_error_handler(on_error)

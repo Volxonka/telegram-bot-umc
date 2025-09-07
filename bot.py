@@ -1,5 +1,6 @@
 import logging
 import os
+import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from config import BOT_TOKEN, GROUPS, CURATORS
@@ -1759,6 +1760,19 @@ def main():
         .build()
     )
     
+    # Keepalive для Render free (не даём сервису заснуть)
+    async def keepalive_job(context: ContextTypes.DEFAULT_TYPE):
+        try:
+            url = os.getenv('KEEPALIVE_URL') or os.getenv('RENDER_EXTERNAL_URL')
+            if not url:
+                return
+            if not url.startswith('http'):
+                url = f"https://{url}"
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.get(url)
+        except Exception:
+            pass
+
     # Глобальный обработчик ошибок
     application.add_error_handler(on_error)
     
@@ -1811,6 +1825,9 @@ def main():
     
     # Запускаем бота
     print("Бот запущен! Нажмите Ctrl+C для остановки.")
+    # Планируем keepalive пинги каждые 10 минут
+    if application.job_queue:
+        application.job_queue.run_repeating(keepalive_job, interval=600, first=30)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':

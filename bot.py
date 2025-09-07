@@ -1811,7 +1811,7 @@ def main():
     
     # Запускаем бота
     print("Бот запущен! Нажмите Ctrl+C для остановки.")
-    application.run_polling()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     # Для Render Web Service - открываем порт

@@ -311,9 +311,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("📅 Отправить расписание", callback_data=f"schedule_{group}")],
             [InlineKeyboardButton("📢 Сделать объявление", callback_data=f"announce_{group}")],
             [InlineKeyboardButton("🗳 Голосование", callback_data=f"polls_menu_{group}")],
-            [InlineKeyboardButton("👥 Список студентов", callback_data=f"students_list_{group}")],
+            [InlineKeyboardButton("👥 Студенты", callback_data=f"students_menu_{group}")],
             [InlineKeyboardButton("❓ Вопросы студентов", callback_data=f"view_questions_{group}")],
-            [InlineKeyboardButton("✏️ Редактировать студента", callback_data=f"students_edit_{group}")],
             [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{group}")],
             [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
         ]

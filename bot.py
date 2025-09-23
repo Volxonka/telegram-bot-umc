@@ -5,6 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from config import BOT_TOKEN, GROUPS, CURATORS
 from database import Database
+from datetime import datetime
 
 # Настройка логирования
 logging.basicConfig(
@@ -15,6 +16,25 @@ logger = logging.getLogger(__name__)
 
 # Инициализация базы данных
 db = Database()
+
+def clear_conversation_state(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Очищает возможные конфликтующие состояния диалога."""
+    for key in (
+        "waiting_for",
+        "target_group",
+        "target_question",
+        "import_group",
+        "edit_student_group",
+        "edit_student_old",
+        "poll_absent_id",
+        "poll_absent_user",
+        "poll_group",
+        "poll_curator",
+    ):
+        try:
+            context.user_data.pop(key, None)
+        except Exception:
+            pass
 
 def with_home_button(keyboard, group: str):
     """Добавляет кнопку '🏠 Главное меню' в клавиатуру, если её нет"""
@@ -366,6 +386,7 @@ async def handle_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Сохраняем состояние для ожидания расписания
+    clear_conversation_state(context)
     context.user_data["waiting_for"] = f"schedule_{group}"
     context.user_data["target_group"] = group
     
@@ -392,6 +413,7 @@ async def handle_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     
     # Сохраняем состояние для ожидания объявления
+    clear_conversation_state(context)
     context.user_data["waiting_for"] = f"announce_{group}"
     context.user_data["target_group"] = group
     
@@ -726,7 +748,6 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         keyboard = []
         reply_markup = with_home_button(keyboard, group)
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
     else:
         # Показываем последнее расписание
         latest_schedule = schedule_messages[-1]
@@ -749,6 +770,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Удаляем старое сообщение
             await query.delete_message()
+            return
         else:
             # Обычное текстовое расписание
             text = f"📅 **Расписание группы {GROUPS[group]}**\n\n"
@@ -759,7 +781,10 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
             ]
             reply_markup = with_home_button(keyboard, group)
-    
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+            return
+
+    # Единая точка отправки ответа
     await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def view_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -804,6 +829,7 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     
     # Сохраняем состояние для ожидания вопроса
+    clear_conversation_state(context)
     context.user_data["waiting_for"] = f"question_{group}"
     context.user_data["target_group"] = group
 
@@ -826,7 +852,10 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def view_questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает вопросы для куратора"""
+    """Показывает только текущие (неотвеченные) вопросы для куратора.
+
+    История отвеченных вопросов намеренно скрыта, чтобы не перегружать интерфейс.
+    """
     query = update.callback_query
     await query.answer()
     
@@ -845,32 +874,20 @@ async def view_questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
     
     pending_questions = db.get_pending_questions(group)
-    all_questions = db.get_all_questions(group)
-    
-    if not all_questions:
-        text = f"❓ **Вопросов для группы {GROUPS[group]} пока нет.**\n\n"
-        text += "💡 Студенты могут задавать вопросы через главное меню."
+
+    if not pending_questions:
+        text = (
+            f"❓ **Вопросов для группы {GROUPS[group]} пока нет.**\n\n"
+            "💡 Когда появятся новые вопросы от студентов, они будут показаны здесь."
+        )
         keyboard = []
     else:
-        text = f"❓ **Вопросы группы {GROUPS[group]}**\n\n"
-        
-        # Показываем неотвеченные вопросы
-        if pending_questions:
-            text += "⏳ **Неотвеченные вопросы:**\n"
-            for q in pending_questions[-3:]:  # Последние 3 неотвеченных
-                text += f"• ⏳ Вопрос #{q['id']}: {q['question'][:50]}...\n"
-            text += "\n"
-        
-        # Показываем последние отвеченные вопросы
-        answered_questions = [q for q in all_questions if q['status'] == 'answered']
-        if answered_questions:
-            text += "✅ **Отвеченные вопросы:**\n"
-            for q in answered_questions[-2:]:  # Последние 2 отвеченных
-                text += f"• ✅ Вопрос #{q['id']}: {q['question'][:40]}...\n"
-        
-        keyboard = [
-            [InlineKeyboardButton("📝 Ответить на вопрос", callback_data=f"answer_question_{group}")]
-        ]
+        text = f"❓ **Неотвеченные вопросы группы {GROUPS[group]}**\n\n"
+        for q in pending_questions[-5:]:  # Показываем последние 5 неотвеченных
+            preview = (q['question'][:80] + '...') if len(q['question']) > 80 else q['question']
+            text += f"• ⏳ Вопрос #{q['id']}: {preview}\n"
+        text += "\nВыберите \"Ответить на вопрос\", чтобы написать ответ студенту."
+        keyboard = [[InlineKeyboardButton("📝 Ответить на вопрос", callback_data=f"answer_question_{group}")]]
     
     reply_markup = with_home_button(keyboard, group)
     await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
@@ -956,6 +973,7 @@ async def select_question_for_answer(update: Update, context: ContextTypes.DEFAU
         return
     
     # Сохраняем состояние для ожидания ответа
+    clear_conversation_state(context)
     context.user_data["waiting_for"] = f"answer_{group}_{question_id}"
     context.user_data["target_group"] = group
     context.user_data["target_question"] = question
@@ -1105,7 +1123,7 @@ async def students_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("➕ Импорт из текста", callback_data=f"students_import_{group}")],
         [InlineKeyboardButton("📋 Показать список", callback_data=f"students_list_{group}")],
-        [InlineKeyboardButton("🗑 Удалить студента", callback_data=f"students_delete_{group}")]
+        [InlineKeyboardButton("✏️ Редактировать", callback_data=f"students_edit_{group}"), InlineKeyboardButton("🗑 Удалить", callback_data=f"students_delete_{group}")]
     ]
     reply_markup = with_home_button(keyboard, group)
     await query.edit_message_text(f"👥 Студенты группы {GROUPS[group]}", reply_markup=reply_markup)
@@ -1118,6 +1136,7 @@ async def students_import_start(update: Update, context: ContextTypes.DEFAULT_TY
     if not db.is_curator(user_id, group):
         await query.edit_message_text("❌ Нет прав")
         return
+    clear_conversation_state(context)
     context.user_data["import_group"] = group
     await query.edit_message_text(
         f"Отправьте текстовый список студентов для {GROUPS[group]} одной последующей сообщением.\n"
@@ -1233,6 +1252,7 @@ async def students_edit_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db.is_curator(user_id, group):
         await query.edit_message_text("❌ Нет прав")
         return
+    clear_conversation_state(context)
     context.user_data['edit_student_group'] = group
     context.user_data['edit_student_old'] = old_name
     await query.edit_message_text(f"Введите новое ФИО для:\n{old_name}")
@@ -1281,6 +1301,7 @@ async def polls_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not db.is_curator(user_id, group):
         await query.edit_message_text("❌ Нет прав")
         return
+    clear_conversation_state(context)
     context.user_data["poll_group"] = group
     context.user_data["poll_curator"] = user_id
     await query.edit_message_text(
@@ -1386,6 +1407,17 @@ async def poll_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ Вы не состоите в этой группе")
         return
     
+    # Защита от повторного голосования
+    existing = poll.get("responses", {}).get(str(user_id))
+    if existing:
+        resp_status = "присутствует" if existing.get("status") == "present" else "отсутствует"
+        resp_reason = existing.get("reason", "")
+        text = f"🗳 Ваш ответ уже учтён: {resp_status}"
+        if resp_reason:
+            text += f"\n💬 Причина: {resp_reason}"
+        await query.edit_message_text(text)
+        return
+
     if status == "present":
         # Просто отмечаем присутствие
         db.add_poll_response(poll_id, user_id, "present")

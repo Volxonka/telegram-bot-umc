@@ -22,8 +22,8 @@ def init_default_data():
     # Базовые факультеты
     if not os.path.exists(FACULTIES_FILE):
         default_faculties = {
-            "ж": {"name": "Женский факультет", "description": "Женский факультет ИМЦ"},
-            "р": {"name": "Русский факультет", "description": "Русский факультет ИМЦ"}
+            "ж": {"name": "Факультет Ж", "description": "Факультет Ж УМЦ"},
+            "р": {"name": "Факультет Р", "description": "Факультет Р УМЦ"}
         }
         with open(FACULTIES_FILE, 'w', encoding='utf-8') as f:
             json.dump(default_faculties, f, ensure_ascii=False, indent=2)
@@ -31,11 +31,11 @@ def init_default_data():
     # Базовые группы
     if not os.path.exists(GROUPS_FILE):
         default_groups = {
-            "ж1": {"name": "Ж1", "faculty": "ж", "description": "Женская группа 1"},
-            "ж2": {"name": "Ж2", "faculty": "ж", "description": "Женская группа 2"},
-            "ж3": {"name": "Ж3", "faculty": "ж", "description": "Женская группа 3"},
-            "р1": {"name": "Р1", "faculty": "р", "description": "Русская группа 1"},
-            "р2": {"name": "Р2", "faculty": "р", "description": "Русская группа 2"}
+            "ж1": {"name": "Ж1", "faculty": "ж", "description": "Группа Ж1"},
+            "ж2": {"name": "Ж2", "faculty": "ж", "description": "Группа Ж2"},
+            "ж3": {"name": "Ж3", "faculty": "ж", "description": "Группа Ж3"},
+            "р1": {"name": "Р1", "faculty": "р", "description": "Группа Р1"},
+            "р2": {"name": "Р2", "faculty": "р", "description": "Группа Р2"}
         }
         with open(GROUPS_FILE, 'w', encoding='utf-8') as f:
             json.dump(default_groups, f, ensure_ascii=False, indent=2)

@@ -1,0 +1,27 @@
+{
+  "ж1": {
+    "name": "Ж1",
+    "faculty": "ж",
+    "description": "Женская группа 1"
+  },
+  "ж2": {
+    "name": "Ж2",
+    "faculty": "ж",
+    "description": "Женская группа 2"
+  },
+  "ж3": {
+    "name": "Ж3",
+    "faculty": "ж",
+    "description": "Женская группа 3"
+  },
+  "р1": {
+    "name": "Р1",
+    "faculty": "р",
+    "description": "Русская группа 1"
+  },
+  "р2": {
+    "name": "Р2",
+    "faculty": "р",
+    "description": "Русская группа 2"
+  }
+}

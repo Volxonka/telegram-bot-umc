@@ -96,8 +96,14 @@ class Database:
     
     def is_curator(self, user_id: int, group: str) -> bool:
         """Проверяет, является ли пользователь куратором группы"""
-        from config import CURATORS
-        return user_id in CURATORS.get(group, [])
+        from config import load_curators, ADMIN_ID
+        curators = load_curators()
+        return user_id in curators.get(group, []) or user_id == ADMIN_ID
+    
+    def is_admin(self, user_id: int) -> bool:
+        """Проверяет, является ли пользователь главным администратором"""
+        from config import ADMIN_ID
+        return user_id == ADMIN_ID
     
     def get_group_users(self, group: str) -> List[int]:
         """Получает всех пользователей группы"""
@@ -346,3 +352,46 @@ class Database:
                 self.questions = json.load(f)
         else:
             self.questions = {}
+    
+    # --- Faculty and Group Management ---
+    def get_all_faculties(self):
+        """Получает все факультеты"""
+        from config import load_faculties
+        return load_faculties()
+    
+    def get_all_groups(self):
+        """Получает все группы"""
+        from config import load_groups
+        return load_groups()
+    
+    def get_groups_by_faculty(self, faculty_id: str):
+        """Получает все группы факультета"""
+        groups = self.get_all_groups()
+        return {k: v for k, v in groups.items() if v.get("faculty") == faculty_id}
+    
+    def get_all_curators(self):
+        """Получает всех кураторов"""
+        from config import load_curators
+        return load_curators()
+    
+    def get_all_users(self):
+        """Получает всех пользователей"""
+        return self.users
+    
+    def get_all_students(self):
+        """Получает всех студентов из всех групп"""
+        return self.students
+    
+    def get_all_messages(self):
+        """Получает все сообщения из всех групп"""
+        return self.messages
+    
+    def get_all_questions(self):
+        """Получает все вопросы из всех групп"""
+        if "questions" not in self.__dict__:
+            return {}
+        return self.questions
+    
+    def get_all_polls(self):
+        """Получает все голосования"""
+        return self.polls

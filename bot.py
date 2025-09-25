@@ -3,7 +3,7 @@ import os
 import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-from config import BOT_TOKEN, GROUPS, CURATORS
+from config import BOT_TOKEN, GROUPS, CURATORS, GROUPS_LEGACY, ADMIN_ID, load_faculties, load_groups, load_curators, save_faculties, save_groups, save_curators
 from database import Database
 from datetime import datetime
 
@@ -68,9 +68,15 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username or "Unknown"
     
+    # Проверяем, является ли пользователь главным администратором
+    if user_id == ADMIN_ID:
+        await show_admin_panel(update, context)
+        return
+    
     # Проверяем, является ли пользователь куратором какой-либо группы
+    curators = load_curators()
     curator_groups = []
-    for group, curator_ids in CURATORS.items():
+    for group, curator_ids in curators.items():
         if user_id in curator_ids:
             curator_groups.append(group)
     
@@ -83,8 +89,10 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_main_menu(update, context, group)
         else:
             # Пользователь куратор нескольких групп
+            groups = load_groups()
+            group_names = [groups[g]["name"] for g in curator_groups]
             await update.message.reply_text(
-                f"Вы являетесь куратором групп: {', '.join([GROUPS[g] for g in curator_groups])}\n"
+                f"Вы являетесь куратором групп: {', '.join(group_names)}\n"
                 "Используйте /start для выбора группы."
             )
     else:
@@ -224,13 +232,15 @@ async def today_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     schedule_messages = [m for m in group_messages if m['type'] == 'schedule']
     
     if not schedule_messages:
-        text = f"📅 **Расписание на сегодня для группы {GROUPS[user_group]} пока не добавлено.**\n\n"
+        groups = load_groups()
+        group_name = groups.get(user_group, {}).get("name", user_group)
+        text = f"📅 **Расписание на сегодня для группы {group_name} пока не добавлено.**\n\n"
         text += "💡 Куратор группы добавит расписание в ближайшее время."
     else:
         # Показываем последнее расписание (самое актуальное)
         latest_schedule = schedule_messages[-1]
         text = f"📅 **Расписание на сегодня**\n"
-        text += f"Группа: {GROUPS[user_group]}\n\n"
+        text += f"Группа: {group_name}\n\n"
         text += f"{latest_schedule['content']}\n\n"
         text += f"🕐 Обновлено: {latest_schedule['timestamp']}"
     
@@ -263,9 +273,25 @@ async def show_group_selection(update: Update, context: ContextTypes.DEFAULT_TYP
 
 Выберите свою группу для регистрации:"""
     
+    # Загружаем актуальные группы
+    groups = load_groups()
+    faculties = load_faculties()
+    
     keyboard = []
-    for group_key, group_name in GROUPS.items():
-        keyboard.append([InlineKeyboardButton(group_name, callback_data=f"join_{group_key}")])
+    current_faculty = None
+    
+    for group_key, group_data in groups.items():
+        faculty_id = group_data.get("faculty", "")
+        faculty_name = faculties.get(faculty_id, {}).get("name", faculty_id)
+        
+        # Добавляем заголовок факультета если он изменился
+        if current_faculty != faculty_id:
+            if current_faculty is not None:  # Не добавляем пустую строку в начале
+                keyboard.append([])  # Пустая строка между факультетами
+            current_faculty = faculty_id
+        
+        group_name = group_data.get("name", group_key)
+        keyboard.append([InlineKeyboardButton(f"{group_name} ({faculty_name})", callback_data=f"join_{group_key}")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
@@ -280,6 +306,8 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
     
     if query.data.startswith("join_"):
         group = query.data.replace("join_", "")
+        groups = load_groups()
+        group_name = groups.get(group, {}).get("name", group)
         
         # Проверяем, является ли пользователь куратором
         if db.is_curator(user_id, group):
@@ -288,7 +316,7 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
             await query.edit_message_text(
                 f"🎉 **Круто! Теперь ты часть цивилизации!** 🎉\n\n"
                 f"👨‍🏫 **Роль:** Куратор\n"
-                f"👥 **Группа:** {GROUPS[group]}\n\n"
+                f"👥 **Группа:** {group_name}\n\n"
                 f"🚀 Добро пожаловать! Теперь ты можешь:\n"
                 f"• 📅 Отправлять расписание\n"
                 f"• 📢 Делать объявления\n"
@@ -304,9 +332,42 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
             context.user_data['full_name_group'] = group
             context.user_data['registration_username'] = username
             await query.edit_message_text(
-                f"👋 Добро пожаловать в группу {GROUPS[group]}!\n\n"
+                f"👋 Добро пожаловать в группу {group_name}!\n\n"
                 "📝 Укажите ваше ФИО для регистрации (например: Иванов Иван Иванович):"
             )
+
+async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает панель администратора"""
+    user_id = update.effective_user.id if update.effective_user else update.callback_query.from_user.id
+    
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("У вас нет прав администратора.")
+        return
+    
+    # Очищаем состояния
+    clear_conversation_state(context)
+    
+    text = """🔧 **Панель администратора**
+
+Выберите действие:"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🏛 Управление факультетами", callback_data="admin_faculties")],
+        [InlineKeyboardButton("👥 Управление группами", callback_data="admin_groups")],
+        [InlineKeyboardButton("👨‍🏫 Назначение кураторов", callback_data="admin_curators")],
+        [InlineKeyboardButton("📊 Общая статистика", callback_data="admin_stats")],
+        [InlineKeyboardButton("👤 Все пользователи", callback_data="admin_users")],
+        [InlineKeyboardButton("❓ Все вопросы", callback_data="admin_questions")],
+        [InlineKeyboardButton("📢 Все сообщения", callback_data="admin_messages")],
+        [InlineKeyboardButton("🏠 Главное меню", callback_data="admin_main_menu")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, group: str):
     """Показывает главное меню для группы"""
@@ -337,7 +398,9 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{group}")],
             [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
         ]
-        title = f"👨‍🏫 Меню куратора группы {GROUPS[group]}"
+        groups = load_groups()
+        group_name = groups.get(group, {}).get("name", group)
+        title = f"👨‍🏫 Меню куратора группы {group_name}"
     else:
         # Меню для студента
         keyboard = [
@@ -347,7 +410,9 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("❓ Задать вопрос", callback_data=f"ask_question_{group}")],
             [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
         ]
-        title = f"👨‍🎓 Меню группы {GROUPS[group]}"
+        groups = load_groups()
+        group_name = groups.get(group, {}).get("name", group)
+        title = f"👨‍🎓 Меню группы {group_name}"
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -379,6 +444,8 @@ async def handle_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     group = query.data.replace("schedule_", "")
     user_id = query.from_user.id
+    groups = load_groups()
+    group_name = groups.get(group, {}).get("name", group)
     
     # Проверяем права куратора
     if not db.is_curator(user_id, group):
@@ -391,7 +458,7 @@ async def handle_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["target_group"] = group
     
     await query.edit_message_text(
-        f"📅 **Отправка расписания для группы {GROUPS[group]}**\n\n"
+        f"📅 **Отправка расписания для группы {group_name}**\n\n"
         f"Просто отправьте расписание:\n"
         f"• 📝 Текстом\n"
         f"• 📷 Фото\n"
@@ -406,6 +473,8 @@ async def handle_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     group = query.data.replace("announce_", "")
     user_id = query.from_user.id
+    groups = load_groups()
+    group_name = groups.get(group, {}).get("name", group)
     
     # Проверяем права куратора
     if not db.is_curator(user_id, group):
@@ -418,7 +487,7 @@ async def handle_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data["target_group"] = group
     
     await query.edit_message_text(
-        f"Отправьте объявление для группы {GROUPS[group]}.\n"
+        f"Отправьте объявление для группы {group_name}.\n"
         "Можно отправить текст, фото или документ (pdf/jpg/png)."
     )
 
@@ -435,7 +504,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Если пользователь не зарегистрирован, проверим, является ли он куратором
-        curator_groups = [g for g, ids in CURATORS.items() if user_id in ids]
+        curators = load_curators()
+        curator_groups = [g for g, ids in curators.items() if user_id in ids]
         if len(curator_groups) == 1:
             # Автозапись куратора в свою группу и открытие меню куратора
             group = curator_groups[0]
@@ -456,6 +526,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     waiting_for = context.user_data["waiting_for"]
     target_group = context.user_data["target_group"]
+    groups = load_groups()
+    group_name = groups.get(target_group, {}).get("name", target_group)
 
     # Поддержка медиа
     has_photo = bool(update.message.photo)
@@ -487,7 +559,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(
             f"✅ **Расписание успешно сохранено!**\n\n"
-            f"📅 Группа: {GROUPS[target_group]}\n"
+            f"📅 Группа: {group_name}\n"
             f"📝 Тип: {content_type}\n\n"
             f"Студенты могут посмотреть расписание в меню \"📅 Расписание\""
         )
@@ -515,7 +587,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("target_group", None)
         
         await update.message.reply_text(
-            f"✅ Объявление успешно отправлено всем участникам группы {GROUPS[target_group]}!\n\n"
+            f"✅ Объявление успешно отправлено всем участникам группы {group_name}!\n\n"
             f"📊 Уведомления доставлены: {sent_count} студентам"
         )
         
@@ -531,7 +603,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("target_group", None)
         
         await update.message.reply_text(
-            f"✅ Вопрос #{question_id} успешно отправлен куратору группы {GROUPS[target_group]}!\n\n"
+            f"✅ Вопрос #{question_id} успешно отправлен куратору группы {group_name}!\n\n"
             "Куратор ответит на него в ближайшее время."
         )
         
@@ -1759,6 +1831,243 @@ async def poll_export_csv(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка отправки CSV: {e}")
         await query.edit_message_text("❌ Ошибка при создании файла")
 
+# === ADMIN FUNCTIONS ===
+
+async def admin_faculties(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Управление факультетами"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    faculties = load_faculties()
+    
+    text = "🏛 **Управление факультетами**\n\n"
+    for faculty_id, faculty_data in faculties.items():
+        text += f"**{faculty_data['name']}** ({faculty_id})\n"
+        text += f"Описание: {faculty_data.get('description', 'Нет описания')}\n\n"
+    
+    keyboard = [
+        [InlineKeyboardButton("➕ Добавить факультет", callback_data="admin_add_faculty")],
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_groups(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Управление группами"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    groups = load_groups()
+    faculties = load_faculties()
+    
+    text = "👥 **Управление группами**\n\n"
+    for group_id, group_data in groups.items():
+        faculty_id = group_data.get("faculty", "")
+        faculty_name = faculties.get(faculty_id, {}).get("name", faculty_id)
+        text += f"**{group_data['name']}** ({group_id})\n"
+        text += f"Факультет: {faculty_name}\n"
+        text += f"Описание: {group_data.get('description', 'Нет описания')}\n\n"
+    
+    keyboard = [
+        [InlineKeyboardButton("➕ Добавить группу", callback_data="admin_add_group")],
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_curators(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Назначение кураторов"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    curators = load_curators()
+    groups = load_groups()
+    
+    text = "👨‍🏫 **Назначение кураторов**\n\n"
+    for group_id, curator_ids in curators.items():
+        group_name = groups.get(group_id, {}).get("name", group_id)
+        text += f"**{group_name}** ({group_id}):\n"
+        if curator_ids:
+            for curator_id in curator_ids:
+                text += f"  • ID: {curator_id}\n"
+        else:
+            text += "  • Куратор не назначен\n"
+        text += "\n"
+    
+    keyboard = [
+        [InlineKeyboardButton("➕ Назначить куратора", callback_data="admin_assign_curator")],
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Общая статистика"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    # Собираем статистику
+    users = db.get_all_users()
+    students = db.get_all_students()
+    messages = db.get_all_messages()
+    questions = db.get_all_questions()
+    polls = db.get_all_polls()
+    groups = load_groups()
+    faculties = load_faculties()
+    
+    text = "📊 **Общая статистика**\n\n"
+    text += f"🏛 **Факультетов:** {len(faculties)}\n"
+    text += f"👥 **Групп:** {len(groups)}\n"
+    text += f"👤 **Пользователей:** {len(users)}\n"
+    text += f"🎓 **Студентов:** {sum(len(group_students) for group_students in students.values())}\n"
+    text += f"📢 **Сообщений:** {sum(len(group_messages) for group_messages in messages.values())}\n"
+    text += f"❓ **Вопросов:** {sum(len(group_questions) for group_questions in questions.values())}\n"
+    text += f"🗳 **Голосований:** {len(polls)}\n\n"
+    
+    # Статистика по группам
+    text += "**По группам:**\n"
+    for group_id, group_data in groups.items():
+        group_name = group_data.get("name", group_id)
+        group_users = len([u for u in users.values() if u.get("group") == group_id])
+        group_students = len(students.get(group_id, []))
+        group_messages = len(messages.get(group_id, []))
+        group_questions = len(questions.get(group_id, []))
+        
+        text += f"**{group_name}:** {group_users} пользователей, {group_students} студентов, {group_messages} сообщений, {group_questions} вопросов\n"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Все пользователи"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    users = db.get_all_users()
+    groups = load_groups()
+    
+    text = "👤 **Все пользователи**\n\n"
+    
+    for user_id_str, user_data in users.items():
+        username = user_data.get("username", "Unknown")
+        group_id = user_data.get("group", "Unknown")
+        group_name = groups.get(group_id, {}).get("name", group_id)
+        is_curator = user_data.get("is_curator", False)
+        
+        text += f"**ID:** {user_id_str}\n"
+        text += f"**Username:** @{username}\n"
+        text += f"**Группа:** {group_name}\n"
+        text += f"**Куратор:** {'Да' if is_curator else 'Нет'}\n\n"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Все вопросы"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    questions = db.get_all_questions()
+    groups = load_groups()
+    
+    text = "❓ **Все вопросы**\n\n"
+    
+    for group_id, group_questions in questions.items():
+        group_name = groups.get(group_id, {}).get("name", group_id)
+        text += f"**{group_name}:**\n"
+        
+        for question in group_questions:
+            status = question.get("status", "pending")
+            text += f"  • {question.get('question', 'Нет текста')} ({status})\n"
+        text += "\n"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Все сообщения"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    messages = db.get_all_messages()
+    groups = load_groups()
+    
+    text = "📢 **Все сообщения**\n\n"
+    
+    for group_id, group_messages in messages.items():
+        group_name = groups.get(group_id, {}).get("name", group_id)
+        text += f"**{group_name}:** {len(group_messages)} сообщений\n"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Возврат в главное меню из админки"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    # Показываем выбор группы для админа
+    await show_group_selection(update, context)
+
 async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Маршрутизирует текст: ФИО -> редактирование студентов -> импорт студентов -> голосования -> прочее"""
     handled = await handle_full_name_input(update, context)
@@ -1852,6 +2161,18 @@ def main():
     application.add_handler(CallbackQueryHandler(poll_export_csv, pattern="^poll_export_"))
     application.add_handler(CallbackQueryHandler(student_polls_menu, pattern="^student_polls_[^_]+$"))
     application.add_handler(CallbackQueryHandler(poll_response, pattern="^poll_(present|absent)_"))
+    
+    # Admin handlers
+    application.add_handler(CallbackQueryHandler(show_admin_panel, pattern="^admin_panel$"))
+    application.add_handler(CallbackQueryHandler(admin_faculties, pattern="^admin_faculties$"))
+    application.add_handler(CallbackQueryHandler(admin_groups, pattern="^admin_groups$"))
+    application.add_handler(CallbackQueryHandler(admin_curators, pattern="^admin_curators$"))
+    application.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
+    application.add_handler(CallbackQueryHandler(admin_users, pattern="^admin_users$"))
+    application.add_handler(CallbackQueryHandler(admin_questions, pattern="^admin_questions$"))
+    application.add_handler(CallbackQueryHandler(admin_messages, pattern="^admin_messages$"))
+    application.add_handler(CallbackQueryHandler(admin_main_menu, pattern="^admin_main_menu$"))
+    
     application.add_handler(MessageHandler((filters.PHOTO | filters.Document.ALL) & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))
     

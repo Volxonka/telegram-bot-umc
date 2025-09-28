@@ -479,7 +479,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("👥 Студенты", callback_data=f"students_menu_{group}")],
             [InlineKeyboardButton("❓ Вопросы студентов", callback_data=f"view_questions_{group}")],
             [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{group}")],
-            # [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],  # Нужен HTTPS
+            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],
             [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
         ]
         groups = load_groups()
@@ -492,7 +492,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("📢 Объявления", callback_data=f"view_announce_{group}")],
             [InlineKeyboardButton("🗳 Голосование", callback_data=f"student_polls_{group}")],
             [InlineKeyboardButton("❓ Задать вопрос", callback_data=f"ask_question_{group}")],
-            # [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],  # Нужен HTTPS
+            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],
             [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
         ]
         groups = load_groups()
@@ -2220,7 +2220,7 @@ def main():
     application.add_handler(CallbackQueryHandler(show_stats, pattern="^stats_"))
     application.add_handler(CallbackQueryHandler(change_group, pattern="^change_group$"))
     application.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back_to_menu_"))
-    # application.add_handler(CallbackQueryHandler(handle_webapp, pattern="^webapp_"))  # Нужен HTTPS
+    application.add_handler(CallbackQueryHandler(handle_webapp, pattern="^webapp_"))
     application.add_handler(CallbackQueryHandler(view_schedule, pattern="^view_schedule_"))
     application.add_handler(CallbackQueryHandler(view_announcements, pattern="^view_announce_"))
     application.add_handler(CallbackQueryHandler(ask_question, pattern="^ask_question_"))

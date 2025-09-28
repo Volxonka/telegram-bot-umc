@@ -8,7 +8,7 @@
 # WEBAPP_BASE_URL = "https://your-ngrok-url.ngrok.io"
 
 # For production on Render:
-WEBAPP_BASE_URL = "https://telegram-bot-umc.onrender.com"
+WEBAPP_BASE_URL = "https://telegram-webapp-umc.onrender.com"
 
 # For local testing (temporary):
 # WEBAPP_BASE_URL = "http://localhost:8081"

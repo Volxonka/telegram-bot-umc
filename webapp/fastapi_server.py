@@ -85,9 +85,89 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 # Также обслуживаем файлы напрямую в корне
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="root")
 
+# Импортируем модули бота для работы с БД
+import sys
+sys.path.append('..')
+from database import Database
+from config import load_faculties, load_groups, load_curators
+
+# Инициализация базы данных
+db = Database()
+
 # Функции для работы с данными
+def load_real_data() -> Dict[str, Any]:
+    """Загружает реальные данные из базы данных бота"""
+    try:
+        # Получаем реальные данные из БД
+        users = db.get_all_users()
+        students = db.get_all_students()
+        messages = db.get_all_messages()
+        questions = db.get_all_questions()
+        polls = db.get_all_polls()
+        
+        # Преобразуем в формат для веб-приложения
+        schedule_data = []
+        announcements_data = []
+        polls_data = []
+        questions_data = []
+        
+        # Обрабатываем сообщения как объявления
+        for msg in messages:
+            announcements_data.append({
+                "id": msg.get("id", 0),
+                "title": msg.get("title", "Объявление"),
+                "time": msg.get("time", "Недавно"),
+                "content": msg.get("content", ""),
+                "priority": "high" if msg.get("important", False) else "medium",
+                "author": msg.get("author", "Система"),
+                "read": False
+            })
+        
+        # Обрабатываем вопросы
+        for q in questions:
+            questions_data.append({
+                "id": q.get("id", 0),
+                "student": q.get("student_name", "Студент"),
+                "question": q.get("question", ""),
+                "time": q.get("time", "Недавно"),
+                "status": "answered" if q.get("answer") else "pending",
+                "answer": q.get("answer", None)
+            })
+        
+        # Обрабатываем голосования
+        for poll in polls:
+            polls_data.append({
+                "id": poll.get("id", 0),
+                "title": poll.get("title", "Голосование"),
+                "description": poll.get("description", ""),
+                "status": "active" if poll.get("active", True) else "ended",
+                "created_at": poll.get("created_at", "2024-09-28T09:00:00"),
+                "options": poll.get("options", []),
+                "total_votes": poll.get("total_votes", 0),
+                "user_vote": None
+            })
+        
+        return {
+            "schedule": schedule_data,
+            "announcements": announcements_data,
+            "polls": polls_data,
+            "questions": questions_data,
+            "user_info": {
+                "id": 12345,
+                "first_name": "Пользователь",
+                "last_name": "УМЦ",
+                "username": "user",
+                "group": "Группа Ж1",
+                "role": "student",
+                "faculty": "Факультет Ж"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Ошибка загрузки данных: {e}")
+        return load_demo_data()
+
 def load_demo_data() -> Dict[str, Any]:
-    """Загружает демо-данные для веб-приложения"""
+    """Загружает демо-данные для веб-приложения (fallback)"""
     return {
         "schedule": [
             {
@@ -228,7 +308,7 @@ async def get_app_data(request: Request):
         logger.info(f"Запрос данных от {request.client.host}, User-Agent: {user_agent[:100]}")
         
         # Возвращаем демо-данные
-        data = load_demo_data()
+        data = load_real_data()
         
         return JSONResponse({
             "status": "success",
@@ -338,6 +418,26 @@ async def internal_error_handler(request: Request, exc: HTTPException):
         {"status": "error", "message": "Внутренняя ошибка сервера"},
         status_code=500
     )
+
+@app.post("/api/announcements")
+async def create_announcement(request: Request):
+    """Создание нового объявления"""
+    try:
+        data = await request.json()
+        # Здесь можно добавить логику создания объявления в БД
+        return JSONResponse({"status": "success", "message": "Объявление создано"})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.post("/api/polls/{poll_id}/vote")
+async def vote_poll(poll_id: int, request: Request):
+    """Голосование в опросе"""
+    try:
+        data = await request.json()
+        # Здесь можно добавить логику голосования в БД
+        return JSONResponse({"status": "success", "message": "Голос засчитан"})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

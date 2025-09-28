@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#2c5aa0">
+    <title>УМЦ - Университет Мировых Цивилизаций</title>
+    <link rel="stylesheet" href="enhanced-styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        // Fallback for browsers that don't support Telegram WebApp
+        if (!window.Telegram) {
+            window.Telegram = {
+                WebApp: {
+                    ready: function() {},
+                    expand: function() {},
+                    initDataUnsafe: {},
+                    showAlert: function(msg) { alert(msg); },
+                    BackButton: {
+                        show: function() {},
+                        hide: function() {},
+                        onClick: function() {}
+                    },
+                    onEvent: function() {}
+                }
+            };
+        }
+    </script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-container">
+            <div class="loading-logo">
+                <div class="logo-icon">🎓</div>
+                <div class="logo-text">УМЦ</div>
+            </div>
+            <div class="loading-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <div class="loading-text">Загрузка приложения...</div>
+            <div class="loading-progress">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" class="app-container" style="display: none;">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <div class="logo-icon">🎓</div>
+                        <div class="logo-text">
+                            <h1>УМЦ</h1>
+                            <p>Университет Мировых Цивилизаций</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                    </button>
+                    <button class="notification-btn" onclick="toggleNotifications()" title="Уведомления">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notification-count">3</span>
+                    </button>
+                    <div class="user-profile" onclick="toggleUserMenu()">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="user-info">
+                            <span class="user-name" id="user-name">Тест Пользователь</span>
+                            <span class="user-role" id="user-role">Студент</span>
+                        </div>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- User Menu Dropdown -->
+        <div id="user-menu" class="user-menu" style="display: none;">
+            <div class="menu-item" onclick="showProfile()">
+                <i class="fas fa-user"></i>
+                <span>Профиль</span>
+            </div>
+            <div class="menu-item" onclick="showSettings()">
+                <i class="fas fa-cog"></i>
+                <span>Настройки</span>
+            </div>
+            <div class="menu-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Выйти</span>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input" placeholder="Поиск по расписанию, объявлениям, вопросам...">
+                <button class="search-clear" onclick="clearSearch()" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">Все</button>
+                <button class="filter-btn" data-filter="today">Сегодня</button>
+                <button class="filter-btn" data-filter="week">Неделя</button>
+                <button class="filter-btn" data-filter="important">Важное</button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs" id="nav-tabs">
+            <button class="nav-tab active" data-tab="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Главная</span>
+            </button>
+            <button class="nav-tab" data-tab="schedule">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Расписание</span>
+            </button>
+            <button class="nav-tab" data-tab="announcements">
+                <i class="fas fa-bullhorn"></i>
+                <span>Объявления</span>
+            </button>
+            <button class="nav-tab" data-tab="polls">
+                <i class="fas fa-poll"></i>
+                <span>Голосования</span>
+            </button>
+            <button class="nav-tab" data-tab="questions">
+                <i class="fas fa-question-circle"></i>
+                <span>Вопросы</span>
+            </button>
+        </nav>
+        
+        <!-- Mobile Navigation Indicator -->
+        <div class="mobile-nav-indicator" id="mobile-nav-indicator"></div>
+
+        <!-- Content Areas -->
+        <main class="main-content">
+            <!-- Dashboard Tab -->
+            <div id="dashboard-tab" class="tab-content active">
+                <div class="dashboard-grid">
+                    <!-- Quick Stats -->
+                    <div class="stats-card">
+                        <div class="stats-header">
+                            <h3>📊 Статистика</h3>
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">5</div>
+                                <div class="stat-label">Пар сегодня</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">3</div>
+                                <div class="stat-label">Новых объявлений</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">1</div>
+                                <div class="stat-label">Активных голосований</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">2</div>
+                                <div class="stat-label">Неотвеченных вопросов</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Today's Schedule -->
+                    <div class="schedule-card">
+                        <div class="card-header">
+                            <h3>📅 Сегодняшнее расписание</h3>
+                            <button class="refresh-btn" onclick="refreshTodaySchedule()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="schedule-list" id="today-schedule">
+                            <div class="schedule-item">
+                                <div class="time">09:00</div>
+                                <div class="subject">Математика</div>
+                                <div class="room">Ауд. 101</div>
+                                <div class="status present">Присутствую</div>
+                            </div>
+                            <div class="schedule-item">
+                                <div class="time">10:45</div>
+                                <div class="subject">Физика</div>
+                                <div class="room">Ауд. 203</div>
+                                <div class="status absent">Отсутствую</div>
+                            </div>
+                            <div class="schedule-item">
+                                <div class="time">13:00</div>
+                                <div class="subject">Химия</div>
+                                <div class="room">Лаб. 15</div>
+                                <div class="status pending">Ожидает</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Announcements -->
+                    <div class="announcements-card">
+                        <div class="card-header">
+                            <h3>📢 Последние объявления</h3>
+                            <button class="view-all-btn" onclick="switchTab('announcements')">
+                                Все <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="announcements-list" id="recent-announcements">
+                            <div class="announcement-item important">
+                                <div class="announcement-icon">🚨</div>
+                                <div class="announcement-content">
+                                    <div class="announcement-title">Важное собрание</div>
+                                    <div class="announcement-time">2 часа назад</div>
+                                </div>
+                            </div>
+                            <div class="announcement-item">
+                                <div class="announcement-icon">📝</div>
+                                <div class="announcement-content">
+                                    <div class="announcement-title">Домашнее задание</div>
+                                    <div class="announcement-time">5 часов назад</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="actions-card">
+                        <div class="card-header">
+                            <h3>⚡ Быстрые действия</h3>
+                        </div>
+                        <div class="actions-grid">
+                            <button class="action-btn" onclick="askQuickQuestion()">
+                                <i class="fas fa-question"></i>
+                                <span>Задать вопрос</span>
+                            </button>
+                            <button class="action-btn" onclick="viewAttendance()">
+                                <i class="fas fa-user-check"></i>
+                                <span>Посещаемость</span>
+                            </button>
+                            <button class="action-btn" onclick="viewGrades()">
+                                <i class="fas fa-graduation-cap"></i>
+                                <span>Оценки</span>
+                            </button>
+                            <button class="action-btn" onclick="viewCalendar()">
+                                <i class="fas fa-calendar"></i>
+                                <span>Календарь</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Tab -->
+            <div id="schedule-tab" class="tab-content">
+                <div class="content-header">
+                    <h2><i class="fas fa-calendar-alt"></i> Расписание</h2>
+                    <div class="header-actions">
+                        <button class="btn-secondary" onclick="exportSchedule()">
+                            <i class="fas fa-download"></i> Экспорт
+                        </button>
+                        <button class="btn-primary" onclick="refreshSchedule()">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+                <div class="schedule-content" id="schedule-content">
+                    <!-- Schedule content will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Announcements Tab -->
+            <div id="announcements-tab" class="tab-content">
+                <div class="content-header">
+                    <h2><i class="fas fa-bullhorn"></i> Объявления</h2>
+                    <div class="header-actions">
+                        <button class="btn-secondary" onclick="markAllRead()">
+                            <i class="fas fa-check-double"></i> Прочитать все
+                        </button>
+                        <button class="btn-primary" onclick="refreshAnnouncements()">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+                <div class="announcements-content" id="announcements-content">
+                    <!-- Announcements content will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Polls Tab -->
+            <div id="polls-tab" class="tab-content">
+                <div class="content-header">
+                    <h2><i class="fas fa-poll"></i> Голосования</h2>
+                    <div class="header-actions">
+                        <button class="btn-secondary" onclick="viewPollHistory()">
+                            <i class="fas fa-history"></i> История
+                        </button>
+                        <button class="btn-primary" onclick="refreshPolls()">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+                <div class="polls-content" id="polls-content">
+                    <!-- Polls content will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Questions Tab -->
+            <div id="questions-tab" class="tab-content">
+                <div class="content-header">
+                    <h2><i class="fas fa-question-circle"></i> Вопросы</h2>
+                    <div class="header-actions">
+                        <button class="btn-secondary" onclick="viewQuestionHistory()">
+                            <i class="fas fa-history"></i> История
+                        </button>
+                        <button class="btn-primary" onclick="refreshQuestions()">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+                <div class="questions-content" id="questions-content">
+                    <!-- Questions content will be loaded here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Floating Action Button -->
+        <div class="fab-container">
+            <button class="fab" onclick="toggleFabMenu()">
+                <i class="fas fa-plus" id="fab-icon"></i>
+            </button>
+            <div class="fab-menu" id="fab-menu">
+                <button class="fab-item" onclick="openScheduleForm()">
+                    <i class="fas fa-calendar-plus"></i>
+                    <span>Расписание</span>
+                </button>
+                <button class="fab-item" onclick="openAnnouncementForm()">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Объявление</span>
+                </button>
+                <button class="fab-item" onclick="openPollForm()">
+                    <i class="fas fa-poll"></i>
+                    <span>Голосование</span>
+                </button>
+                <button class="fab-item" onclick="openQuestionForm()">
+                    <i class="fas fa-question"></i>
+                    <span>Вопрос</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Notification Panel -->
+        <div id="notification-panel" class="notification-panel" style="display: none;">
+            <div class="notification-header">
+                <h3>Уведомления</h3>
+                <button class="close-btn" onclick="toggleNotifications()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="notification-list" id="notification-list">
+                <div class="notification-item unread">
+                    <div class="notification-icon">📅</div>
+                    <div class="notification-content">
+                        <div class="notification-title">Новое расписание</div>
+                        <div class="notification-text">Добавлено расписание на завтра</div>
+                        <div class="notification-time">5 минут назад</div>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <div class="notification-icon">📢</div>
+                    <div class="notification-content">
+                        <div class="notification-title">Новое объявление</div>
+                        <div class="notification-text">Важное собрание группы</div>
+                        <div class="notification-time">1 час назад</div>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <div class="notification-icon">🗳</div>
+                    <div class="notification-content">
+                        <div class="notification-title">Голосование завершено</div>
+                        <div class="notification-text">Результаты голосования доступны</div>
+                        <div class="notification-time">2 часа назад</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal -->
+        <div id="modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">Заголовок</h3>
+                    <button class="modal-close" onclick="closeModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="modal-form"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="enhanced-app.js"></script>
+</body>
+</html>

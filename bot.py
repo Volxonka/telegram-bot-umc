@@ -1,9 +1,10 @@
 import logging
 import os
 import httpx
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from config import BOT_TOKEN, GROUPS, CURATORS, GROUPS_LEGACY, ADMIN_ID, load_faculties, load_groups, load_curators, save_faculties, save_groups, save_curators
+from webapp_config import get_webapp_url, get_webapp_info
 from database import Database
 from datetime import datetime
 
@@ -48,10 +49,92 @@ def with_home_button(keyboard, group: str):
     keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data=f"back_to_menu_{group}")])
     return InlineKeyboardMarkup(keyboard)
 
+async def open_webapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Открывает веб-приложение"""
+    user_id = update.effective_user.id
+    user_group = db.get_user_group(user_id)
+    
+    if not user_group:
+        await update.message.reply_text(
+            "❌ Сначала нужно зарегистрироваться в группе!\n\n"
+            "Используйте команду /start для выбора группы."
+        )
+        return
+    
+    # Get web app URL from configuration
+    webapp_url = get_webapp_url("main")
+    
+    keyboard = [
+        [InlineKeyboardButton("🚀 Открыть приложение", web_app=get_webapp_info())]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🎉 **Добро пожаловать в веб-приложение УМЦ!**\n\n"
+        "✨ **Новые возможности:**\n"
+        "• 🎨 Красивый современный интерфейс\n"
+        "• ⚡ Быстрая навигация\n"
+        "• 📱 Адаптивный дизайн\n"
+        "• 🔄 Автообновление данных\n\n"
+        "Нажмите кнопку ниже, чтобы открыть приложение:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def handle_webapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает нажатие кнопки веб-приложения"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    group = query.data.replace("webapp_", "")
+    user_group = db.get_user_group(user_id)
+    
+    if not user_group or user_group != group:
+        await query.edit_message_text(
+            "❌ Ошибка доступа к группе!\n\n"
+            "Используйте команду /start для выбора группы."
+        )
+        return
+    
+    # Get web app URL from configuration
+    webapp_url = get_webapp_url("main")
+    
+    keyboard = [
+        [InlineKeyboardButton("🚀 Открыть приложение", web_app=get_webapp_info())],
+        [InlineKeyboardButton("🔙 Назад в меню", callback_data=f"back_to_menu_{group}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    groups = load_groups()
+    group_name = groups.get(group, {}).get("name", group)
+    is_curator = db.is_curator(user_id, group)
+    
+    role_text = "куратора" if is_curator else "студента"
+    
+    await query.edit_message_text(
+        f"🎉 **Веб-приложение УМЦ для {role_text} группы {group_name}**\n\n"
+        "✨ **Новые возможности:**\n"
+        "• 🎨 Красивый современный интерфейс\n"
+        "• ⚡ Быстрая навигация между разделами\n"
+        "• 📱 Адаптивный дизайн для всех устройств\n"
+        "• 🔄 Автообновление данных в реальном времени\n"
+        "• 🎭 Плавные анимации и переходы\n"
+        "• 📊 Интерактивные графики и статистика\n\n"
+        "Нажмите кнопку ниже, чтобы открыть приложение:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начальная команда с выбором группы"""
     user_id = update.effective_user.id
     username = update.effective_user.username or "Unknown"
+    
+    # Check if user wants to open web app
+    if context.args and context.args[0] == 'webapp':
+        await open_webapp(update, context)
+        return
     
     # Проверяем, зарегистрирован ли пользователь
     user_group = db.get_user_group(user_id)
@@ -396,6 +479,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("👥 Студенты", callback_data=f"students_menu_{group}")],
             [InlineKeyboardButton("❓ Вопросы студентов", callback_data=f"view_questions_{group}")],
             [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{group}")],
+            # [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],  # Нужен HTTPS
             [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
         ]
         groups = load_groups()
@@ -408,6 +492,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("📢 Объявления", callback_data=f"view_announce_{group}")],
             [InlineKeyboardButton("🗳 Голосование", callback_data=f"student_polls_{group}")],
             [InlineKeyboardButton("❓ Задать вопрос", callback_data=f"ask_question_{group}")],
+            # [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],  # Нужен HTTPS
             [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
         ]
         groups = load_groups()
@@ -2135,6 +2220,7 @@ def main():
     application.add_handler(CallbackQueryHandler(show_stats, pattern="^stats_"))
     application.add_handler(CallbackQueryHandler(change_group, pattern="^change_group$"))
     application.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back_to_menu_"))
+    # application.add_handler(CallbackQueryHandler(handle_webapp, pattern="^webapp_"))  # Нужен HTTPS
     application.add_handler(CallbackQueryHandler(view_schedule, pattern="^view_schedule_"))
     application.add_handler(CallbackQueryHandler(view_announcements, pattern="^view_announce_"))
     application.add_handler(CallbackQueryHandler(ask_question, pattern="^ask_question_"))

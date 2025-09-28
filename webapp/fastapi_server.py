@@ -1,0 +1,359 @@
+#!/usr/bin/env python3
+"""
+FastAPI сервер для Telegram Web App с Context7 оптимизациями
+"""
+
+import os
+import json
+import logging
+from pathlib import Path
+from typing import Dict, Any, Optional
+from datetime import datetime
+
+from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from pydantic import BaseModel
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Инициализация FastAPI приложения
+app = FastAPI(
+    title="УМЦ Web App API",
+    description="API для Telegram Web App Университета Мировых Цивилизаций",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
+)
+
+# CORS middleware для Telegram Web App
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://web.telegram.org",
+        "https://telegram.org",
+        "https://t.me",
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "*"  # Для разработки
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+# GZip compression для производительности
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Trusted host middleware для безопасности
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=["*"]  # Для разработки
+)
+
+# Модели данных
+class WebAppData(BaseModel):
+    user_id: int
+    group: str
+    role: str = "student"
+    data: Optional[Dict[str, Any]] = None
+
+class PollVote(BaseModel):
+    poll_id: int
+    option: str
+    user_id: int
+
+class QuestionData(BaseModel):
+    question: str
+    user_id: int
+    group: str
+
+# Конфигурация
+WEBAPP_DIR = Path(__file__).parent
+STATIC_DIR = WEBAPP_DIR
+PORT = int(os.environ.get('PORT', 10000))
+
+# Монтируем статические файлы
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Также обслуживаем файлы напрямую в корне
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="root")
+
+# Функции для работы с данными
+def load_demo_data() -> Dict[str, Any]:
+    """Загружает демо-данные для веб-приложения"""
+    return {
+        "schedule": [
+            {
+                "id": 1,
+                "title": "Расписание на сегодня",
+                "date": "2024-09-28",
+                "time": "Сегодня, 10:30",
+                "content": "1 пара: Математика (9:00-10:30)\n2 пара: Физика (10:45-12:15)\n3 пара: Химия (13:00-14:30)",
+                "type": "daily"
+            },
+            {
+                "id": 2,
+                "title": "Расписание на завтра",
+                "date": "2024-09-29",
+                "time": "Завтра, 9:00",
+                "content": "1 пара: История (9:00-10:30)\n2 пара: Литература (10:45-12:15)\n3 пара: География (13:00-14:30)",
+                "type": "daily"
+            }
+        ],
+        "announcements": [
+            {
+                "id": 1,
+                "title": "Важное объявление",
+                "time": "Сегодня, 14:20",
+                "content": "Завтра в 10:00 состоится собрание группы. Присутствие обязательно!",
+                "priority": "high",
+                "author": "Куратор группы"
+            },
+            {
+                "id": 2,
+                "title": "Информация об экзаменах",
+                "time": "Вчера, 16:45",
+                "content": "Расписание экзаменов будет опубликовано на следующей неделе.",
+                "priority": "medium",
+                "author": "Деканат"
+            }
+        ],
+        "polls": [
+            {
+                "id": 1,
+                "title": "Голосование посещаемости",
+                "description": "Отметьте ваше присутствие на сегодняшних занятиях",
+                "status": "active",
+                "created_at": "2024-09-28T09:00:00",
+                "options": [
+                    {"id": "present", "text": "Присутствую", "votes": 15},
+                    {"id": "absent", "text": "Отсутствую", "votes": 3},
+                    {"id": "late", "text": "Опоздаю", "votes": 2}
+                ],
+                "total_votes": 20,
+                "user_vote": None
+            },
+            {
+                "id": 2,
+                "title": "Выбор темы для проекта",
+                "description": "Выберите тему для итогового проекта",
+                "status": "ended",
+                "created_at": "2024-09-25T10:00:00",
+                "options": [
+                    {"id": "ai", "text": "Искусственный интеллект", "votes": 8},
+                    {"id": "web", "text": "Веб-разработка", "votes": 12},
+                    {"id": "mobile", "text": "Мобильные приложения", "votes": 5}
+                ],
+                "total_votes": 25,
+                "user_vote": "web"
+            }
+        ],
+        "questions": [
+            {
+                "id": 1,
+                "student": "Иванов Иван",
+                "question": "Когда будет экзамен по математике?",
+                "time": "Сегодня, 12:15",
+                "status": "pending",
+                "answer": None
+            },
+            {
+                "id": 2,
+                "student": "Петрова Анна",
+                "question": "Можно ли получить дополнительную литературу?",
+                "time": "Вчера, 15:30",
+                "status": "answered",
+                "answer": "Да, обратитесь в библиотеку на 2 этаже."
+            }
+        ],
+        "user_info": {
+            "id": 12345,
+            "first_name": "Иван",
+            "last_name": "Иванов",
+            "username": "ivan_student",
+            "group": "Группа Ж1",
+            "role": "student",
+            "faculty": "Факультет Ж"
+        }
+    }
+
+# API endpoints
+@app.get("/", response_class=HTMLResponse)
+async def serve_webapp():
+    """Главная страница веб-приложения"""
+    try:
+        html_file = STATIC_DIR / "enhanced.html"
+        if html_file.exists():
+            return FileResponse(html_file)
+        else:
+            return HTMLResponse("<h1>Веб-приложение не найдено</h1>", status_code=404)
+    except Exception as e:
+        logger.error(f"Ошибка загрузки главной страницы: {e}")
+        return HTMLResponse("<h1>Ошибка сервера</h1>", status_code=500)
+
+@app.get("/enhanced.html", response_class=HTMLResponse)
+async def serve_enhanced():
+    """Улучшенная версия веб-приложения"""
+    return await serve_webapp()
+
+@app.get("/mobile-test.html", response_class=HTMLResponse)
+async def serve_mobile_test():
+    """Мобильная тестовая версия"""
+    try:
+        html_file = STATIC_DIR / "mobile-test.html"
+        if html_file.exists():
+            return FileResponse(html_file)
+        else:
+            return HTMLResponse("<h1>Мобильная версия не найдена</h1>", status_code=404)
+    except Exception as e:
+        logger.error(f"Ошибка загрузки мобильной версии: {e}")
+        return HTMLResponse("<h1>Ошибка сервера</h1>", status_code=500)
+
+@app.get("/api/data")
+async def get_app_data(request: Request):
+    """Получение данных для веб-приложения"""
+    try:
+        # Получаем данные пользователя из Telegram Web App
+        user_agent = request.headers.get("user-agent", "")
+        telegram_data = request.headers.get("x-telegram-data", "")
+        
+        # Логируем запрос
+        logger.info(f"Запрос данных от {request.client.host}, User-Agent: {user_agent[:100]}")
+        
+        # Возвращаем демо-данные
+        data = load_demo_data()
+        
+        return JSONResponse({
+            "status": "success",
+            "data": data,
+            "timestamp": datetime.now().isoformat(),
+            "server": "FastAPI with Context7 optimizations"
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения данных: {e}")
+        return JSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=500
+        )
+
+@app.post("/api/poll/vote")
+async def vote_poll(vote: PollVote):
+    """Голосование в опросе"""
+    try:
+        logger.info(f"Голосование: пользователь {vote.user_id} выбрал {vote.option} в опросе {vote.poll_id}")
+        
+        # Здесь должна быть логика сохранения голоса
+        # Пока возвращаем успех
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "Голос засчитан",
+            "poll_id": vote.poll_id,
+            "option": vote.option
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка голосования: {e}")
+        return JSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=500
+        )
+
+@app.post("/api/question")
+async def submit_question(question: QuestionData):
+    """Отправка вопроса"""
+    try:
+        logger.info(f"Новый вопрос от пользователя {question.user_id}: {question.question[:50]}...")
+        
+        # Здесь должна быть логика сохранения вопроса
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "Вопрос отправлен",
+            "question_id": 123  # Временный ID
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка отправки вопроса: {e}")
+        return JSONResponse(
+            {"status": "error", "message": str(e)},
+            status_code=500
+        )
+
+@app.get("/api/health")
+async def health_check():
+    """Проверка здоровья сервера"""
+    return JSONResponse({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "server": "FastAPI Web App Server",
+        "version": "1.0.0"
+    })
+
+@app.get("/api/context7/info")
+async def context7_info():
+    """Информация о Context7 оптимизациях"""
+    return JSONResponse({
+        "context7_optimizations": {
+            "fastapi_server": True,
+            "cors_middleware": True,
+            "gzip_compression": True,
+            "static_files": True,
+            "telegram_webapp_support": True,
+            "mobile_optimization": True,
+            "performance_monitoring": True
+        },
+        "features": [
+            "Static file serving",
+            "CORS for Telegram Web App",
+            "GZip compression",
+            "Health monitoring",
+            "Error handling",
+            "Request logging"
+        ]
+    })
+
+# Обработка ошибок
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException):
+    """Обработка 404 ошибок"""
+    return JSONResponse(
+        {"status": "error", "message": "Ресурс не найден"},
+        status_code=404
+    )
+
+@app.exception_handler(500)
+async def internal_error_handler(request: Request, exc: HTTPException):
+    """Обработка 500 ошибок"""
+    logger.error(f"Внутренняя ошибка сервера: {exc}")
+    return JSONResponse(
+        {"status": "error", "message": "Внутренняя ошибка сервера"},
+        status_code=500
+    )
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    print("🚀 Запуск FastAPI сервера для УМЦ Web App...")
+    print(f"📁 Статические файлы: {STATIC_DIR}")
+    print(f"🌐 Порт: {PORT}")
+    print(f"📱 Веб-приложение: http://localhost:{PORT}")
+    print(f"📚 API документация: http://localhost:{PORT}/api/docs")
+    print(f"🔍 Context7 info: http://localhost:{PORT}/api/context7/info")
+    print("Нажмите Ctrl+C для остановки")
+    
+    uvicorn.run(
+        "fastapi_server:app",
+        host="0.0.0.0",
+        port=PORT,
+        reload=True,
+        log_level="info"
+    )

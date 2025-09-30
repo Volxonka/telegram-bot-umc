@@ -112,38 +112,44 @@ def load_real_data() -> Dict[str, Any]:
         questions_data = []
         
         # Обрабатываем сообщения как объявления
-        for msg in messages:
-            announcements_data.append({
-                "id": msg.get("id", 0),
-                "title": msg.get("title", "Объявление"),
-                "time": msg.get("time", "Недавно"),
-                "content": msg.get("content", ""),
-                "priority": "high" if msg.get("important", False) else "medium",
-                "author": msg.get("author", "Система"),
-                "read": False
-            })
+        for group_id, group_messages in messages.items():
+            for msg in group_messages:
+                if msg.get("type") == "announcement":
+                    announcements_data.append({
+                        "id": msg.get("id", 0),
+                        "title": msg.get("title", "Объявление"),
+                        "time": msg.get("timestamp", "Недавно"),
+                        "content": msg.get("content", ""),
+                        "priority": "high" if msg.get("important", False) else "medium",
+                        "author": msg.get("author", "Система"),
+                        "read": False
+                    })
         
         # Обрабатываем вопросы
-        for q in questions:
-            questions_data.append({
-                "id": q.get("id", 0),
-                "student": q.get("student_name", "Студент"),
-                "question": q.get("question", ""),
-                "time": q.get("time", "Недавно"),
-                "status": "answered" if q.get("answer") else "pending",
-                "answer": q.get("answer", None)
-            })
+        for group_id, group_questions in questions.items():
+            for q in group_questions:
+                questions_data.append({
+                    "id": q.get("id", 0),
+                    "student": q.get("student_name", "Студент"),
+                    "question": q.get("question", ""),
+                    "time": q.get("timestamp", "Недавно"),
+                    "status": "answered" if q.get("answer") else "pending",
+                    "answer": q.get("answer", None)
+                })
         
         # Обрабатываем голосования
-        for poll in polls:
+        for poll_id, poll in polls.items():
             polls_data.append({
-                "id": poll.get("id", 0),
-                "title": poll.get("title", "Голосование"),
+                "id": poll_id,
+                "title": poll.get("title", "Голосование посещаемости"),
                 "description": poll.get("description", ""),
-                "status": "active" if poll.get("active", True) else "ended",
+                "status": "active" if poll.get("status") == "active" else "ended",
                 "created_at": poll.get("created_at", "2024-09-28T09:00:00"),
-                "options": poll.get("options", []),
-                "total_votes": poll.get("total_votes", 0),
+                "options": [
+                    {"id": "present", "text": "Присутствую", "votes": poll.get("present", 0)},
+                    {"id": "absent", "text": "Отсутствую", "votes": poll.get("absent", 0)}
+                ],
+                "total_votes": poll.get("present", 0) + poll.get("absent", 0),
                 "user_vote": None
             })
         

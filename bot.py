@@ -141,6 +141,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if user_group:
         # Пользователь уже зарегистрирован
+        groups = load_groups()
+        group_name = groups.get(user_group, {}).get("name", user_group)
+        await update.message.reply_text(
+            f"🎉 **Добро пожаловать обратно!**\n\n"
+            f"👥 **Ваша группа:** {group_name}\n"
+            f"✅ **Статус:** Зарегистрирован\n\n"
+            f"Выберите действие в меню ниже: ⬇️"
+        )
         await show_main_menu(update, context, user_group)
     else:
         # Показываем выбор группы
@@ -438,6 +446,7 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏛 Управление факультетами", callback_data="admin_faculties")],
         [InlineKeyboardButton("👥 Управление группами", callback_data="admin_groups")],
         [InlineKeyboardButton("👨‍🏫 Назначение кураторов", callback_data="admin_curators")],
+        [InlineKeyboardButton("🔄 Смена группы студента", callback_data="admin_change_student_group")],
         [InlineKeyboardButton("📊 Общая статистика", callback_data="admin_stats")],
         [InlineKeyboardButton("👤 Все пользователи", callback_data="admin_users")],
         [InlineKeyboardButton("❓ Все вопросы", callback_data="admin_questions")],
@@ -492,8 +501,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("📢 Объявления", callback_data=f"view_announce_{group}")],
             [InlineKeyboardButton("🗳 Голосование", callback_data=f"student_polls_{group}")],
             [InlineKeyboardButton("❓ Задать вопрос", callback_data=f"ask_question_{group}")],
-            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],
-            [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
+            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")]
         ]
         groups = load_groups()
         group_name = groups.get(group, {}).get("name", group)
@@ -585,6 +593,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_group = db.get_user_group(user_id)
 
         if user_group:
+            # Пользователь уже зарегистрирован - показываем главное меню
+            logger.info(f"Зарегистрированный пользователь {user_id} ({username}) открыл главное меню группы {user_group}")
             await show_main_menu(update, context, user_group)
             return
 
@@ -774,7 +784,7 @@ async def send_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE, grou
     """Отправляет сообщение всем пользователям группы"""
     users = db.get_group_users(group)
     
-    message = f"{title}\n\n{content}\n\n👥 Группа: {GROUPS[group]}"
+    message = f"{title}\n\n{content}\n\n👥 Группа: {get_group_name(group)}"
     
     sent_count = 0
     for user_id in users:
@@ -789,7 +799,7 @@ async def send_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE, grou
 async def send_to_group_media(context: ContextTypes.DEFAULT_TYPE, group: str, media_type: str, file_id: str, caption: str, title_prefix: str):
     """Отправляет фото/документ всем пользователям группы с общей подписью"""
     users = db.get_group_users(group)
-    full_caption = f"{title_prefix}\n\n{caption}\n\n👥 Группа: {GROUPS[group]}" if caption else f"{title_prefix}\n\n👥 Группа: {GROUPS[group]}"
+    full_caption = f"{title_prefix}\n\n{caption}\n\n👥 Группа: {get_group_name(group)}" if caption else f"{title_prefix}\n\n👥 Группа: {get_group_name(group)}"
     sent_count = 0
     for user_id in users:
         try:
@@ -820,7 +830,7 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users = db.get_group_users(group)
     group_messages = db.messages.get(group, [])
     
-    stats = f"📊 **Статистика группы {GROUPS[group]}**\n\n"
+    stats = f"📊 **Статистика группы {get_group_name(group)}**\n\n"
     stats += f"👥 **Участников:** {len(users)}\n"
     stats += f"📝 **Всего сообщений:** {len(group_messages)}\n"
     stats += f"📅 **Расписаний:** {len([m for m in group_messages if m['type'] == 'schedule'])}\n"
@@ -900,7 +910,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     schedule_messages = [m for m in group_messages if m['type'] == 'schedule']
     
     if not schedule_messages:
-        text = f"📅 **Расписание для группы {GROUPS[group]} пока не добавлено.**\n\n"
+        text = f"📅 **Расписание для группы {get_group_name(group)} пока не добавлено.**\n\n"
         text += "💡 Куратор группы добавит расписание в ближайшее время."
         
         keyboard = []
@@ -913,7 +923,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if latest_schedule.get('file_id') and latest_schedule.get('media_type'):
             file_id = latest_schedule['file_id']
             media_type = latest_schedule['media_type']
-            caption = f"📅 **Расписание группы {GROUPS[group]}**\n\n{latest_schedule['content']}\n\n📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
+            caption = f"📅 **Расписание группы {get_group_name(group)}**\n\n{latest_schedule['content']}\n\n📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
             
             keyboard = [
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
@@ -930,7 +940,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         else:
             # Обычное текстовое расписание
-            text = f"📅 **Расписание группы {GROUPS[group]}**\n\n"
+            text = f"📅 **Расписание группы {get_group_name(group)}**\n\n"
             text += f"{latest_schedule['content']}\n\n"
             text += f"📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
     
@@ -962,10 +972,10 @@ async def view_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE)
     announce_messages = [m for m in group_messages if m['type'] == 'announcement']
     
     if not announce_messages:
-        text = f"📢 **Объявления для группы {GROUPS[group]} пока нет.**\n\n"
+        text = f"📢 **Объявления для группы {get_group_name(group)} пока нет.**\n\n"
         text += "💡 Куратор группы добавит объявления в ближайшее время."
     else:
-        text = f"📢 **Объявления группы {GROUPS[group]}**\n\n"
+        text = f"📢 **Объявления группы {get_group_name(group)}**\n\n"
         for i, msg in enumerate(announce_messages[-5:], 1):  # Показываем последние 5 объявлений
             text += f"**Объявление #{len(announce_messages) - 5 + i}:**\n"
             text += f"{msg['content']}\n\n"
@@ -1001,7 +1011,7 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = with_home_button(keyboard, group)
     
     await query.edit_message_text(
-        f"❓ **Задайте ваш вопрос для группы {GROUPS[group]}**\n\n"
+        f"❓ **Задайте ваш вопрос для группы {get_group_name(group)}**\n\n"
         "Просто напишите текст вопроса, и куратор группы ответит на него.\n\n"
         "💡 Вопрос будет отправлен куратору автоматически.",
         reply_markup=reply_markup,
@@ -1034,12 +1044,12 @@ async def view_questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not pending_questions:
         text = (
-            f"❓ **Вопросов для группы {GROUPS[group]} пока нет.**\n\n"
+            f"❓ **Вопросов для группы {get_group_name(group)} пока нет.**\n\n"
             "💡 Когда появятся новые вопросы от студентов, они будут показаны здесь."
         )
         keyboard = []
     else:
-        text = f"❓ **Неотвеченные вопросы группы {GROUPS[group]}**\n\n"
+        text = f"❓ **Неотвеченные вопросы группы {get_group_name(group)}**\n\n"
         for q in pending_questions[-5:]:  # Показываем последние 5 неотвеченных
             preview = (q['question'][:80] + '...') if len(q['question']) > 80 else q['question']
             text += f"• ⏳ Вопрос #{q['id']}: {preview}\n"
@@ -1066,7 +1076,7 @@ async def answer_question_menu(update: Update, context: ContextTypes.DEFAULT_TYP
     
     if not pending_questions:
         await query.edit_message_text(
-            f"✅ **Все вопросы группы {GROUPS[group]} уже отвечены!**\n\n"
+            f"✅ **Все вопросы группы {get_group_name(group)} уже отвечены!**\n\n"
             f"🎉 Отличная работа, куратор!",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 Назад", callback_data=f"view_questions_{group}")
@@ -1083,7 +1093,7 @@ async def answer_question_menu(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # Показываем список неотвеченных вопросов
     text = f"❓ **Выберите вопрос для ответа**\n"
-    text += f"Группа: {GROUPS[group]}\n\n"
+    text += f"Группа: {get_group_name(group)}\n\n"
     text += f"📝 **Неотвеченных вопросов:** {len(pending_questions)}\n\n"
     
     keyboard = []
@@ -1208,7 +1218,7 @@ async def remind_pending_question(context: ContextTypes.DEFAULT_TYPE):
         preview = (question.get("question", "")[:120] + '...') if len(question.get("question", "")) > 120 else question.get("question", "")
         notify_text = (
             f"⏰ Напоминание: вопрос #{question_id} все еще без ответа\n\n"
-            f"Группа: {GROUPS[group]}\n"
+            f"Группа: {get_group_name(group)}\n"
             f"Текст: {preview}"
         )
         reply_markup = InlineKeyboardMarkup([
@@ -1239,7 +1249,7 @@ async def import_students_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     context.user_data["import_group"] = group
     await update.message.reply_text(
-        f"Отправьте текстовый список студентов для группы {GROUPS[group]} одной последующей сообщением.\n"
+        f"Отправьте текстовый список студентов для группы {get_group_name(group)} одной последующей сообщением.\n"
         "Каждая строка – один студент. Номера в начале строк можно не удалять."
     )
 
@@ -1251,7 +1261,7 @@ async def handle_import_students_text(update: Update, context: ContextTypes.DEFA
     text = update.message.text or ""
     added = db.import_students_text(group, text)
     context.user_data.pop("import_group", None)
-    await update.message.reply_text(f"✅ Импортировано студентов: {added}\nГруппа: {GROUPS[group]}")
+    await update.message.reply_text(f"✅ Импортировано студентов: {added}\nГруппа: {get_group_name(group)}")
     return True
 
 async def students_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1265,7 +1275,7 @@ async def students_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     count = len(students)
     preview = "\n".join([f"- {s.get('full_name')}" for s in students[:15]]) if students else "—"
     await update.message.reply_text(
-        f"👥 Студенты группы {GROUPS[group]}: {count}\n\n" + preview
+        f"👥 Студенты группы {get_group_name(group)}: {count}\n\n" + preview
     )
 
 async def students_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1283,7 +1293,7 @@ async def students_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✏️ Редактировать", callback_data=f"students_edit_{group}"), InlineKeyboardButton("🗑 Удалить", callback_data=f"students_delete_{group}")]
     ]
     reply_markup = with_home_button(keyboard, group)
-    await query.edit_message_text(f"👥 Студенты группы {GROUPS[group]}", reply_markup=reply_markup)
+    await query.edit_message_text(f"👥 Студенты группы {get_group_name(group)}", reply_markup=reply_markup)
 
 async def students_import_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1296,7 +1306,7 @@ async def students_import_start(update: Update, context: ContextTypes.DEFAULT_TY
     clear_conversation_state(context)
     context.user_data["import_group"] = group
     await query.edit_message_text(
-        f"Отправьте текстовый список студентов для {GROUPS[group]} одной последующей сообщением.\n"
+        f"Отправьте текстовый список студентов для {get_group_name(group)} одной последующей сообщением.\n"
         "Каждая строка — один студент. Номера можно оставлять.")
 
 async def students_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1312,9 +1322,9 @@ async def students_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     count = len(students)
     
     if not students:
-        text = f"👥 **Студенты группы {GROUPS[group]}**\n\nСписок пуст"
+        text = f"👥 **Студенты группы {get_group_name(group)}**\n\nСписок пуст"
     else:
-        text = f"👥 **Студенты группы {GROUPS[group]}**\n\n"
+        text = f"👥 **Студенты группы {get_group_name(group)}**\n\n"
         text += f"📊 Всего студентов: {count}\n\n"
         
         for i, student in enumerate(students[:25], 1):  # Показываем первые 25
@@ -1447,7 +1457,7 @@ async def polls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📊 Результаты голосований", callback_data=f"polls_results_{group}")]
     ]
     reply_markup = with_home_button(keyboard, group)
-    await query.edit_message_text(f"🗳 Голосования группы {GROUPS[group]}", reply_markup=reply_markup)
+    await query.edit_message_text(f"🗳 Голосования группы {get_group_name(group)}", reply_markup=reply_markup)
 
 async def polls_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начало создания голосования"""
@@ -1462,7 +1472,7 @@ async def polls_create_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data["poll_group"] = group
     context.user_data["poll_curator"] = user_id
     await query.edit_message_text(
-        f"Создание голосования для группы {GROUPS[group]}\n\n"
+        f"Создание голосования для группы {get_group_name(group)}\n\n"
         "Введите длительность голосования в минутах (по умолчанию 10):"
     )
 
@@ -1495,7 +1505,7 @@ async def handle_poll_duration(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # Уведомляем студентов
     users = db.get_group_users(group)
-    poll_text = f"🗳 **Голосование посещаемости**\n\nГруппа: {GROUPS[group]}\nВремя: {duration} минут\n\nОтметьтесь, пожалуйста:"
+    poll_text = f"🗳 **Голосование посещаемости**\n\nГруппа: {get_group_name(group)}\nВремя: {duration} минут\n\nОтметьтесь, пожалуйста:"
     
     keyboard = [
         [InlineKeyboardButton("✅ Я на месте", callback_data=f"poll_present_{poll_id}")],
@@ -1638,7 +1648,7 @@ async def handle_full_name_input(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(
             f"🎉 **Круто! Теперь ты часть цивилизации!** 🎉\n\n"
             f"👤 **ФИО:** {full_name}\n"
-            f"👥 **Группа:** {GROUPS[group]}\n\n"
+            f"👥 **Группа:** {get_group_name(group)}\n\n"
             f"🚀 Добро пожаловать в наш бот! Теперь ты можешь:\n"
             f"• 🗳 Участвовать в голосованиях\n"
             f"• 📅 Получать расписание\n"
@@ -1666,14 +1676,14 @@ async def student_polls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Получаем активное голосование группы
     polls = db.get_group_polls(group, limit=1)
     if not polls:
-        await query.edit_message_text(f"🗳 Голосования группы {GROUPS[group]}\n\nПока нет активных голосований")
+        await query.edit_message_text(f"🗳 Голосования группы {get_group_name(group)}\n\nПока нет активных голосований")
         return
     
     poll_id, poll = polls[0]
     
     # Проверяем, активно ли голосование
     if poll.get("status") != "active":
-        await query.edit_message_text(f"🗳 Голосования группы {GROUPS[group]}\n\nНет активных голосований")
+        await query.edit_message_text(f"🗳 Голосования группы {get_group_name(group)}\n\nНет активных голосований")
         return
     
     # Проверяем, уже ли студент голосовал
@@ -1693,7 +1703,7 @@ async def student_polls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     
     # Показываем кнопки голосования
-    poll_text = f"🗳 **Голосование посещаемости**\n\nГруппа: {GROUPS[group]}\n\nОтметьтесь, пожалуйста:"
+    poll_text = f"🗳 **Голосование посещаемости**\n\nГруппа: {get_group_name(group)}\n\nОтметьтесь, пожалуйста:"
     
     keyboard = [
         [InlineKeyboardButton("✅ Я на месте", callback_data=f"poll_present_{poll_id}")],
@@ -1716,7 +1726,7 @@ async def polls_results_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Получаем последние голосования
     polls = db.get_group_polls(group, limit=10)
     if not polls:
-        await query.edit_message_text(f"📊 Голосования группы {GROUPS[group]}\n\nПока нет голосований")
+        await query.edit_message_text(f"📊 Голосования группы {get_group_name(group)}\n\nПока нет голосований")
         return
     
     keyboard = []
@@ -1738,7 +1748,7 @@ async def polls_results_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"poll_view_{poll_id}")])
     
     reply_markup = with_home_button(keyboard, group)
-    await query.edit_message_text(f"📊 Голосования группы {GROUPS[group]}\n\nВыберите голосование для просмотра:", reply_markup=reply_markup)
+    await query.edit_message_text(f"📊 Голосования группы {get_group_name(group)}\n\nВыберите голосование для просмотра:", reply_markup=reply_markup)
 
 async def poll_view_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Детальный просмотр голосования"""
@@ -1910,7 +1920,7 @@ async def poll_export_csv(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=user_id,
             document=file_obj,
             filename=filename,
-            caption=f"📊 Результаты голосования {poll_id}\nГруппа: {GROUPS[group]}"
+            caption=f"📊 Результаты голосования {poll_id}\nГруппа: {get_group_name(group)}"
         )
     except Exception as e:
         logger.error(f"Ошибка отправки CSV: {e}")
@@ -1969,6 +1979,140 @@ async def admin_groups(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
     ]
     
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_change_student_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Смена группы студента"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    users = db.get_all_users()
+    groups = load_groups()
+    
+    text = "🔄 **Смена группы студента**\n\n"
+    text += "Выберите студента для смены группы:\n\n"
+    
+    keyboard = []
+    for user_id_str, user_data in users.items():
+        if not user_data.get("is_curator", False):  # Только студенты
+            username = user_data.get("username", "Unknown")
+            group_id = user_data.get("group", "Unknown")
+            group_name = groups.get(group_id, {}).get("name", group_id)
+            full_name = user_data.get("full_name", "")
+            
+            display_name = full_name if full_name else f"@{username}"
+            keyboard.append([InlineKeyboardButton(
+                f"{display_name} ({group_name})", 
+                callback_data=f"admin_change_group_select_{user_id_str}"
+            )])
+    
+    if not keyboard:
+        text += "Нет студентов для смены группы."
+        keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]]
+    else:
+        keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_change_group_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Выбор новой группы для студента"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    student_id = query.data.replace("admin_change_group_select_", "")
+    student_data = db.users.get(student_id)
+    
+    if not student_data:
+        await query.edit_message_text("Студент не найден.")
+        return
+    
+    groups = load_groups()
+    current_group = student_data.get("group", "")
+    current_group_name = groups.get(current_group, {}).get("name", current_group)
+    
+    text = f"🔄 **Смена группы студента**\n\n"
+    text += f"**Студент:** {student_data.get('full_name', f'@{student_data.get('username', 'Unknown')}')}\n"
+    text += f"**Текущая группа:** {current_group_name}\n\n"
+    text += "Выберите новую группу:"
+    
+    keyboard = []
+    for group_id, group_data in groups.items():
+        if group_id != current_group:  # Исключаем текущую группу
+            keyboard.append([InlineKeyboardButton(
+                group_data["name"], 
+                callback_data=f"admin_change_group_confirm_{student_id}_{group_id}"
+            )])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="admin_change_student_group")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_change_group_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Подтверждение смены группы студента"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    parts = query.data.replace("admin_change_group_confirm_", "").split("_")
+    student_id = parts[0]
+    new_group = parts[1]
+    
+    student_data = db.users.get(student_id)
+    if not student_data:
+        await query.edit_message_text("Студент не найден.")
+        return
+    
+    groups = load_groups()
+    old_group = student_data.get("group", "")
+    old_group_name = groups.get(old_group, {}).get("name", old_group)
+    new_group_name = groups.get(new_group, {}).get("name", new_group)
+    
+    # Обновляем группу студента
+    db.users[student_id]["group"] = new_group
+    db.save_users()
+    
+    # Обновляем в списке студентов
+    if old_group in db.students:
+        students = db.students[old_group]
+        for i, student in enumerate(students):
+            if str(student.get("user_id")) == student_id:
+                # Перемещаем студента в новую группу
+                student_copy = student.copy()
+                del students[i]
+                db.save_students()
+                
+                if new_group not in db.students:
+                    db.students[new_group] = []
+                db.students[new_group].append(student_copy)
+                db.save_students()
+                break
+    
+    text = f"✅ **Группа студента изменена!**\n\n"
+    text += f"**Студент:** {student_data.get('full_name', f'@{student_data.get('username', 'Unknown')}')}\n"
+    text += f"**Старая группа:** {old_group_name}\n"
+    text += f"**Новая группа:** {new_group_name}\n\n"
+    text += "Изменения сохранены в базе данных."
+    
+    keyboard = [
+        [InlineKeyboardButton("🔄 Сменить еще", callback_data="admin_change_student_group")],
+        [InlineKeyboardButton("🔙 В админ-панель", callback_data="admin_panel")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
@@ -2253,6 +2397,9 @@ def main():
     application.add_handler(CallbackQueryHandler(admin_faculties, pattern="^admin_faculties$"))
     application.add_handler(CallbackQueryHandler(admin_groups, pattern="^admin_groups$"))
     application.add_handler(CallbackQueryHandler(admin_curators, pattern="^admin_curators$"))
+    application.add_handler(CallbackQueryHandler(admin_change_student_group, pattern="^admin_change_student_group$"))
+    application.add_handler(CallbackQueryHandler(admin_change_group_select, pattern="^admin_change_group_select_"))
+    application.add_handler(CallbackQueryHandler(admin_change_group_confirm, pattern="^admin_change_group_confirm_"))
     application.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
     application.add_handler(CallbackQueryHandler(admin_users, pattern="^admin_users$"))
     application.add_handler(CallbackQueryHandler(admin_questions, pattern="^admin_questions$"))

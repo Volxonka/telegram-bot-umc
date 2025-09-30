@@ -344,6 +344,79 @@ class Database:
         with open(questions_file, 'w', encoding='utf-8') as f:
             json.dump(self.questions, f, ensure_ascii=False, indent=2)
     
+    def get_group_schedule(self, group: str):
+        """Получает расписание группы из сообщений"""
+        if "messages" not in self.__dict__:
+            return []
+        
+        group_messages = self.messages.get(group, [])
+        schedule_messages = [m for m in group_messages if m.get('type') == 'schedule']
+        
+        # Преобразуем в формат расписания
+        schedule = []
+        for msg in schedule_messages:
+            # Парсим расписание из текста сообщения
+            content = msg.get('content', '')
+            if content:
+                # Простой парсинг расписания
+                lines = content.split('\n')
+                for line in lines:
+                    if ':' in line and ('-' in line or '—' in line):
+                        parts = line.split(':', 1)
+                        if len(parts) == 2:
+                            time_part = parts[0].strip()
+                            subject_part = parts[1].strip()
+                            
+                            # Извлекаем время
+                            if '-' in time_part:
+                                time_parts = time_part.split('-')
+                                start_time = time_parts[0].strip()
+                                end_time = time_parts[1].strip()
+                            else:
+                                start_time = time_part
+                                end_time = ""
+                            
+                            schedule.append({
+                                'start_time': start_time,
+                                'end_time': end_time,
+                                'subject': subject_part,
+                                'teacher': 'Преподаватель не указан',
+                                'room': '',
+                                'day': 'Понедельник'
+                            })
+        
+        return schedule
+    
+    def vote_poll(self, poll_id: int, user_id: int, vote: str):
+        """Голосование в опросе"""
+        try:
+            # Находим опрос по ID
+            for group_id, polls in self.polls.items():
+                if poll_id in polls:
+                    poll = polls[poll_id]
+                    
+                    # Инициализируем голоса если их нет
+                    if "votes" not in poll:
+                        poll["votes"] = {}
+                    
+                    # Сохраняем голос пользователя
+                    poll["votes"][str(user_id)] = vote
+                    
+                    # Обновляем счетчики
+                    if vote == "present":
+                        poll["present"] = poll.get("present", 0) + 1
+                    elif vote == "absent":
+                        poll["absent"] = poll.get("absent", 0) + 1
+                    
+                    # Сохраняем изменения
+                    self.save_polls()
+                    return True
+            
+            return False
+        except Exception as e:
+            print(f"Ошибка голосования: {e}")
+            return False
+    
     def load_questions(self):
         """Загружает вопросы из файла"""
         questions_file = "questions.json"

@@ -324,6 +324,19 @@
             font-size: 14px;
         }
 
+        .schedule-room {
+            color: #667eea;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        .schedule-day {
+            color: #764ba2;
+            font-size: 13px;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
         .no-data {
             text-align: center;
             color: #666;
@@ -575,17 +588,25 @@
             const container = document.getElementById('schedule-container');
             
             if (!schedule || schedule.length === 0) {
-                container.innerHTML = '<div class="no-data">Расписание не добавлено</div>';
+                container.innerHTML = '<div class="no-data">📅 Расписание не добавлено<br><small>Куратор добавит расписание в ближайшее время</small></div>';
                 return;
             }
 
             let html = '';
-            schedule.forEach(item => {
+            schedule.forEach((item, index) => {
+                const time = item.time || 'Время не указано';
+                const subject = item.subject || 'Предмет не указан';
+                const teacher = item.teacher || 'Преподаватель не указан';
+                const room = item.room ? `📍 ${item.room}` : '';
+                const day = item.day ? `📅 ${item.day}` : '';
+                
                 html += `
                     <div class="schedule-item">
-                        <div class="schedule-time">${item.time || 'Время не указано'}</div>
-                        <div class="schedule-subject">${item.subject || 'Предмет не указан'}</div>
-                        <div class="schedule-teacher">${item.teacher || 'Преподаватель не указан'}</div>
+                        <div class="schedule-time">⏰ ${time}</div>
+                        <div class="schedule-subject">📚 ${subject}</div>
+                        <div class="schedule-teacher">👨‍🏫 ${teacher}</div>
+                        ${room ? `<div class="schedule-room">${room}</div>` : ''}
+                        ${day ? `<div class="schedule-day">${day}</div>` : ''}
                     </div>
                 `;
             });

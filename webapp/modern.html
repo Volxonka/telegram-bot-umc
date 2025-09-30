@@ -352,42 +352,63 @@
 
         async function loadAllData(userId, group) {
             try {
+                console.log('Загружаем данные для пользователя:', userId, 'группа:', group);
+                
                 const response = await fetch(`/api/data?user_id=${userId}&group=${group}`);
+                console.log('Ответ сервера:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log('Данные получены:', result);
                 
                 if (result.status === 'success') {
                     const data = result.data;
                     
                     // Загружаем расписание
-                    if (data.schedule) {
+                    if (data.schedule && data.schedule.length > 0) {
                         allScheduleData = data.schedule;
                         displaySchedule(data.schedule, 'schedule-container');
                         displayFullSchedule(data.schedule, 'full-schedule-content');
                         displayFullSchedule(data.schedule, 'full-schedule-tab');
+                    } else {
+                        displaySchedule([], 'schedule-container');
+                        displayFullSchedule([], 'full-schedule-content');
+                        displayFullSchedule([], 'full-schedule-tab');
                     }
                     
                     // Загружаем голосования
-                    if (data.polls) {
+                    if (data.polls && data.polls.length > 0) {
                         allPollsData = data.polls;
                         displayPolls(data.polls, 'polls-container');
                         displayAllPolls(data.polls, 'all-polls-container');
+                    } else {
+                        displayPolls([], 'polls-container');
+                        displayAllPolls([], 'all-polls-container');
                     }
                     
                     // Загружаем вопросы
-                    if (data.questions) {
+                    if (data.questions && data.questions.length > 0) {
                         displayQuestions(data.questions, 'questions-container');
+                    } else {
+                        displayQuestions([], 'questions-container');
                     }
                     
                     // Загружаем сообщения
-                    if (data.announcements) {
+                    if (data.announcements && data.announcements.length > 0) {
                         displayMessages(data.announcements, 'messages-container');
+                    } else {
+                        displayMessages([], 'messages-container');
                     }
                 } else {
-                    showError('Ошибка загрузки данных');
+                    console.error('Ошибка в ответе сервера:', result);
+                    showError(`Ошибка сервера: ${result.message || 'Неизвестная ошибка'}`);
                 }
             } catch (error) {
                 console.error('Ошибка загрузки данных:', error);
-                showError('Ошибка загрузки данных');
+                showError(`Ошибка загрузки данных: ${error.message}`);
             }
         }
 

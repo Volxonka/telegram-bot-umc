@@ -98,6 +98,10 @@ db = Database()
 def load_personalized_data(user_id: str, group: str, username: str, full_name: str, is_curator: bool) -> Dict[str, Any]:
     """Загружает персональные данные для конкретного пользователя"""
     try:
+        # Инициализируем базу данных если не инициализирована
+        if not hasattr(db, 'users'):
+            db.load_data()
+        
         # Получаем данные пользователя
         user_data = db.users.get(str(user_id), {})
         groups = load_groups()
@@ -201,7 +205,21 @@ def load_personalized_data(user_id: str, group: str, username: str, full_name: s
         }
     except Exception as e:
         logger.error(f"Ошибка загрузки персональных данных: {e}")
-        return load_demo_data()
+        # Возвращаем пустые данные вместо демо-данных
+        return {
+            "schedule": [],
+            "announcements": [],
+            "polls": [],
+            "questions": [],
+            "user_info": {
+                "user_id": user_id,
+                "username": username,
+                "full_name": full_name,
+                "group": group,
+                "group_name": group,
+                "is_curator": is_curator
+            }
+        }
 
 def load_real_data() -> Dict[str, Any]:
     """Загружает реальные данные из базы данных бота"""
@@ -426,6 +444,10 @@ async def get_app_data(request: Request):
         
         # Загружаем персональные данные пользователя
         data = load_personalized_data(user_id, group, username, full_name, is_curator)
+        
+        # Проверяем что данные загружены
+        if not data:
+            raise Exception("Не удалось загрузить данные пользователя")
         
         return JSONResponse({
             "status": "success",

@@ -98,14 +98,21 @@ db = Database()
 def load_personalized_data(user_id: str, group: str, username: str, full_name: str, is_curator: bool) -> Dict[str, Any]:
     """Загружает персональные данные для конкретного пользователя"""
     try:
+        logger.info(f"Загружаем данные для пользователя {user_id} в группе {group}")
+        
         # Инициализируем базу данных если не инициализирована
         if not hasattr(db, 'users'):
+            logger.info("Инициализируем базу данных...")
             db.load_data()
+            logger.info("База данных инициализирована")
         
         # Получаем данные пользователя
         user_data = db.users.get(str(user_id), {})
+        logger.info(f"Данные пользователя: {len(user_data)} полей")
+        
         groups = load_groups()
         group_name = groups.get(group, {}).get("name", group)
+        logger.info(f"Название группы: {group_name}")
         
         # Получаем данные для группы пользователя
         group_messages = db.messages.get(group, [])
@@ -113,8 +120,11 @@ def load_personalized_data(user_id: str, group: str, username: str, full_name: s
         group_polls = db.get_group_polls(group, limit=10)
         group_students = db.get_students(group)
         
+        logger.info(f"Данные группы: messages={len(group_messages)}, questions={len(group_questions)}, polls={len(group_polls)}, students={len(group_students)}")
+        
         # Получаем расписание группы
         group_schedule = db.get_group_schedule(group)
+        logger.info(f"Расписание группы: {len(group_schedule)} элементов")
         
         # Преобразуем в формат для веб-приложения
         schedule_data = []
@@ -442,8 +452,18 @@ async def get_app_data(request: Request):
         # Логируем запрос
         logger.info(f"Запрос данных от пользователя {user_id} ({username}) в группе {group}")
         
+        # Проверяем обязательные параметры
+        if not user_id or not group:
+            logger.error(f"Отсутствуют обязательные параметры: user_id={user_id}, group={group}")
+            return JSONResponse(
+                {"status": "error", "message": "Отсутствуют обязательные параметры user_id и group"},
+                status_code=400
+            )
+        
         # Загружаем персональные данные пользователя
+        logger.info("Начинаем загрузку персональных данных...")
         data = load_personalized_data(user_id, group, username, full_name, is_curator)
+        logger.info(f"Данные загружены: schedule={len(data.get('schedule', []))}, polls={len(data.get('polls', []))}, questions={len(data.get('questions', []))}")
         
         # Проверяем что данные загружены
         if not data:
@@ -465,6 +485,8 @@ async def get_app_data(request: Request):
         
     except Exception as e:
         logger.error(f"Ошибка получения данных: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return JSONResponse(
             {"status": "error", "message": str(e)},
             status_code=500
@@ -523,6 +545,32 @@ async def health_check():
         "server": "FastAPI Web App Server",
         "version": "1.0.0"
     })
+
+@app.get("/api/test")
+async def test_endpoint():
+    """Тестовый endpoint для проверки работы API"""
+    try:
+        # Проверяем базу данных
+        db_status = "OK" if hasattr(db, 'users') else "Not initialized"
+        
+        # Пробуем загрузить данные
+        if not hasattr(db, 'users'):
+            db.load_data()
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "API работает",
+            "database": db_status,
+            "users_count": len(db.users) if hasattr(db, 'users') else 0,
+            "messages_count": len(db.messages) if hasattr(db, 'messages') else 0,
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }, status_code=500)
 
 @app.get("/api/context7/info")
 async def context7_info():

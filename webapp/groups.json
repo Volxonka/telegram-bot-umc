@@ -1,0 +1,27 @@
+{
+  "ж1": {
+    "name": "Ж1",
+    "faculty": "ж",
+    "description": "Группа Ж1"
+  },
+  "ж2": {
+    "name": "Ж2",
+    "faculty": "ж",
+    "description": "Группа Ж2"
+  },
+  "ж3": {
+    "name": "Ж3",
+    "faculty": "ж",
+    "description": "Группа Ж3"
+  },
+  "р1": {
+    "name": "Р1",
+    "faculty": "р",
+    "description": "Группа Р1"
+  },
+  "р2": {
+    "name": "Р2",
+    "faculty": "р",
+    "description": "Группа Р2"
+  }
+}

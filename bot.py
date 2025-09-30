@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 # Инициализация базы данных
 db = Database()
 
+def get_group_name(group_id: str) -> str:
+    """Получает название группы по ID"""
+    groups = load_groups()
+    return groups.get(group_id, {}).get("name", group_id)
+
 def clear_conversation_state(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Очищает возможные конфликтующие состояния диалога."""
     for key in (
@@ -108,9 +113,11 @@ async def handle_webapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Создаем персонализированный URL с данными пользователя
     webapp_url = get_webapp_url("main")
     
-    # Создаем WebAppInfo с данными пользователя
+    # Создаем WebAppInfo с данными пользователя (кодируем параметры)
+    import urllib.parse
+    encoded_full_name = urllib.parse.quote(full_name)
     webapp_info = WebAppInfo(
-        url=f"{webapp_url}?user_id={user_id}&group={group}&username={username}&full_name={full_name}&is_curator={is_curator}"
+        url=f"{webapp_url}?user_id={user_id}&group={group}&username={username}&full_name={encoded_full_name}&is_curator={is_curator}"
     )
     
     keyboard = [
@@ -2056,7 +2063,10 @@ async def admin_change_group_select(update: Update, context: ContextTypes.DEFAUL
     current_group_name = groups.get(current_group, {}).get("name", current_group)
     
     text = f"🔄 **Смена группы студента**\n\n"
-    text += f"**Студент:** {student_data.get('full_name', f'@{student_data.get('username', 'Unknown')}')}\n"
+    full_name = student_data.get('full_name', '')
+    username = student_data.get('username', 'Unknown')
+    display_name = full_name if full_name else f'@{username}'
+    text += f"**Студент:** {display_name}\n"
     text += f"**Текущая группа:** {current_group_name}\n\n"
     text += "Выберите новую группу:"
     
@@ -2117,7 +2127,10 @@ async def admin_change_group_confirm(update: Update, context: ContextTypes.DEFAU
                 break
     
     text = f"✅ **Группа студента изменена!**\n\n"
-    text += f"**Студент:** {student_data.get('full_name', f'@{student_data.get('username', 'Unknown')}')}\n"
+    full_name = student_data.get('full_name', '')
+    username = student_data.get('username', 'Unknown')
+    display_name = full_name if full_name else f'@{username}'
+    text += f"**Студент:** {display_name}\n"
     text += f"**Старая группа:** {old_group_name}\n"
     text += f"**Новая группа:** {new_group_name}\n\n"
     text += "Изменения сохранены в базе данных."

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>УМЦ - Университет Мировых Цивилизаций</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .user-details h2 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .user-details p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .poll-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .poll-card.active {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+
+        .poll-card.ended {
+            border-color: #6c757d;
+            background: #e9ecef;
+        }
+
+        .poll-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .poll-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .poll-status.active {
+            background: #28a745;
+            color: white;
+        }
+
+        .poll-status.ended {
+            background: #6c757d;
+            color: white;
+        }
+
+        .poll-options {
+            margin-bottom: 15px;
+        }
+
+        .poll-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .poll-option:hover {
+            background: #e9ecef;
+        }
+
+        .poll-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .poll-option label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .poll-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .poll-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .poll-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .schedule-item {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .schedule-time {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .schedule-subject {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .schedule-teacher {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header, .section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок с информацией о пользователе -->
+        <div class="header">
+            <div class="user-info">
+                <div class="user-avatar">
+                    👤
+                </div>
+                <div class="user-details">
+                    <h2 id="user-name">Загрузка...</h2>
+                    <p id="user-group">Группа: Загрузка...</p>
+                    <p id="user-role">Роль: Загрузка...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Голосования -->
+        <div class="section">
+            <div class="section-title">
+                🗳️ Голосования
+            </div>
+            <div id="polls-container">
+                <div class="loading">Загрузка голосований...</div>
+            </div>
+        </div>
+
+        <!-- Расписание -->
+        <div class="section">
+            <div class="section-title">
+                📅 Расписание
+            </div>
+            <div id="schedule-container">
+                <div class="loading">Загрузка расписания...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        let tg = window.Telegram?.WebApp;
+        if (!tg) {
+            tg = {
+                ready: () => {},
+                expand: () => {},
+                showAlert: (message) => alert(message),
+                initDataUnsafe: {}
+            };
+        }
+
+        // Глобальные переменные
+        let currentUser = null;
+        let currentGroup = null;
+        let userRole = 'student';
+
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            try {
+                // Инициализация Telegram Web App
+                tg.ready();
+                tg.expand();
+
+                // Получаем параметры пользователя из URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const user_id = urlParams.get('user_id');
+                const group = urlParams.get('group');
+                const username = urlParams.get('username');
+                const full_name = urlParams.get('full_name');
+                const is_curator = urlParams.get('is_curator') === 'true';
+
+                // Обновляем информацию о пользователе
+                updateUserInfo(full_name, group, is_curator);
+
+                // Загружаем данные
+                await loadPolls(user_id, group);
+                await loadSchedule(group);
+
+            } catch (error) {
+                console.error('Ошибка инициализации:', error);
+                showError('Ошибка загрузки приложения');
+            }
+        }
+
+        function updateUserInfo(fullName, group, isCurator) {
+            document.getElementById('user-name').textContent = fullName || 'Пользователь';
+            document.getElementById('user-group').textContent = `Группа: ${group || 'Неизвестно'}`;
+            document.getElementById('user-role').textContent = `Роль: ${isCurator ? 'Куратор' : 'Студент'}`;
+        }
+
+        async function loadPolls(userId, group) {
+            try {
+                const response = await fetch(`/api/data?user_id=${userId}&group=${group}`);
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data.polls) {
+                    displayPolls(result.data.polls, userId);
+                } else {
+                    document.getElementById('polls-container').innerHTML = 
+                        '<div class="no-data">Нет активных голосований</div>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки голосований:', error);
+                document.getElementById('polls-container').innerHTML = 
+                    '<div class="error">Ошибка загрузки голосований</div>';
+            }
+        }
+
+        function displayPolls(polls, userId) {
+            const container = document.getElementById('polls-container');
+            
+            if (!polls || polls.length === 0) {
+                container.innerHTML = '<div class="no-data">Нет активных голосований</div>';
+                return;
+            }
+
+            let html = '';
+            polls.forEach(poll => {
+                const isActive = poll.status === 'active';
+                const userVote = poll.user_vote;
+                
+                html += `
+                    <div class="poll-card ${isActive ? 'active' : 'ended'}">
+                        <div class="poll-title">${poll.title}</div>
+                        <div class="poll-status ${isActive ? 'active' : 'ended'}">
+                            ${isActive ? 'Активно' : 'Завершено'}
+                        </div>
+                        ${isActive ? `
+                            <div class="poll-options">
+                                <div class="poll-option">
+                                    <input type="radio" id="present_${poll.id}" name="poll_${poll.id}" value="present" ${userVote === 'present' ? 'checked' : ''}>
+                                    <label for="present_${poll.id}">✅ Присутствую</label>
+                                </div>
+                                <div class="poll-option">
+                                    <input type="radio" id="absent_${poll.id}" name="poll_${poll.id}" value="absent" ${userVote === 'absent' ? 'checked' : ''}>
+                                    <label for="absent_${poll.id}">❌ Отсутствую</label>
+                                </div>
+                            </div>
+                            <button class="poll-button" onclick="votePoll(${poll.id}, '${userId}')">
+                                ${userVote ? 'Изменить голос' : 'Проголосовать'}
+                            </button>
+                        ` : `
+                            <div class="poll-options">
+                                <div class="poll-option">
+                                    <label>✅ Присутствуют: ${poll.options[0]?.votes || 0}</label>
+                                </div>
+                                <div class="poll-option">
+                                    <label>❌ Отсутствуют: ${poll.options[1]?.votes || 0}</label>
+                                </div>
+                            </div>
+                            <div style="text-align: center; color: #666; font-size: 14px;">
+                                Всего голосов: ${poll.total_votes}
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        async function votePoll(pollId, userId) {
+            try {
+                const selectedOption = document.querySelector(`input[name="poll_${pollId}"]:checked`);
+                if (!selectedOption) {
+                    tg.showAlert('Выберите вариант ответа');
+                    return;
+                }
+
+                const response = await fetch(`/api/polls/${pollId}/vote`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        vote: selectedOption.value
+                    })
+                });
+
+                if (response.ok) {
+                    tg.showAlert('Голос засчитан!');
+                    // Перезагружаем голосования
+                    const urlParams = new URLSearchParams(window.location.search);
+                    await loadPolls(userId, urlParams.get('group'));
+                } else {
+                    tg.showAlert('Ошибка при голосовании');
+                }
+            } catch (error) {
+                console.error('Ошибка голосования:', error);
+                tg.showAlert('Ошибка при голосовании');
+            }
+        }
+
+        async function loadSchedule(group) {
+            try {
+                const response = await fetch(`/api/data?group=${group}`);
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data.schedule) {
+                    displaySchedule(result.data.schedule);
+                } else {
+                    document.getElementById('schedule-container').innerHTML = 
+                        '<div class="no-data">Расписание не загружено</div>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки расписания:', error);
+                document.getElementById('schedule-container').innerHTML = 
+                    '<div class="error">Ошибка загрузки расписания</div>';
+            }
+        }
+
+        function displaySchedule(schedule) {
+            const container = document.getElementById('schedule-container');
+            
+            if (!schedule || schedule.length === 0) {
+                container.innerHTML = '<div class="no-data">Расписание не добавлено</div>';
+                return;
+            }
+
+            let html = '';
+            schedule.forEach(item => {
+                html += `
+                    <div class="schedule-item">
+                        <div class="schedule-time">${item.time || 'Время не указано'}</div>
+                        <div class="schedule-subject">${item.subject || 'Предмет не указан'}</div>
+                        <div class="schedule-teacher">${item.teacher || 'Преподаватель не указан'}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function showError(message) {
+            document.body.innerHTML = `
+                <div class="container">
+                    <div class="error">${message}</div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

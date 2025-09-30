@@ -15,7 +15,7 @@ WEBAPP_BASE_URL = "https://telegram-webapp-umc.onrender.com"
 
 # Web App pages
 WEBAPP_PAGES = {
-    "main": "/enhanced.html",
+    "main": "/simple.html",
     "mobile_test": "/mobile-test.html",
     "simple": "/test.html"
 }

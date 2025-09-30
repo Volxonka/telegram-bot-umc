@@ -372,7 +372,8 @@ function updateUserInfo(user) {
     const userRoleElement = document.getElementById('user-role');
     
     if (userName) {
-        userName.textContent = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+        const fullName = window.userInfo?.full_name || `${user.first_name} ${user.last_name || ''}`.trim();
+        userName.textContent = fullName;
     }
     
     if (userRoleElement) {
@@ -382,6 +383,13 @@ function updateUserInfo(user) {
             'student': 'Студент'
         };
         userRoleElement.textContent = roleText[userRole] || 'Студент';
+    }
+    
+    // Добавляем информацию о группе
+    const userGroupElement = document.getElementById('user-group');
+    if (userGroupElement) {
+        const groupName = window.userInfo?.group_name || currentGroup;
+        userGroupElement.textContent = `👥 ${groupName}`;
     }
     
     // Update UI based on role
@@ -718,8 +726,22 @@ function applyFilter(filter) {
 
 async function loadDataFromServer() {
     try {
-        console.log('Загрузка данных с сервера...');
-        const response = await fetch('/api/data', {
+        console.log('Загрузка персональных данных с сервера...');
+        
+        // Получаем параметры пользователя из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const user_id = urlParams.get('user_id');
+        const group = urlParams.get('group');
+        const username = urlParams.get('username');
+        const full_name = urlParams.get('full_name');
+        const is_curator = urlParams.get('is_curator') === 'true';
+        
+        console.log('Параметры пользователя:', { user_id, group, username, full_name, is_curator });
+        
+        // Создаем URL с параметрами пользователя
+        const apiUrl = `/api/data?user_id=${user_id}&group=${group}&username=${username}&full_name=${encodeURIComponent(full_name)}&is_curator=${is_curator}`;
+        
+        const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -731,11 +753,28 @@ async function loadDataFromServer() {
         }
         
         const result = await response.json();
-        console.log('Данные получены с сервера:', result);
+        console.log('Персональные данные получены с сервера:', result);
         
         if (result.status === 'success' && result.data) {
             // Обновляем глобальные данные
             window.appData = result.data;
+            window.userInfo = result.user_info;
+            
+            // Обновляем информацию о пользователе
+            if (result.user_info) {
+                currentUser = {
+                    id: result.user_info.user_id,
+                    first_name: result.user_info.full_name.split()[0] || result.user_info.username,
+                    last_name: result.user_info.full_name.split().slice(1).join(' ') || '',
+                    username: result.user_info.username
+                };
+                currentGroup = result.user_info.group;
+                userRole = result.user_info.is_curator ? 'curator' : 'student';
+                isCurator = result.user_info.is_curator;
+                
+                console.log('Обновлена информация о пользователе:', currentUser, userRole);
+            }
+            
             return result.data;
         } else {
             throw new Error('Неверный формат ответа сервера');

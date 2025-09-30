@@ -95,6 +95,96 @@ from config import load_faculties, load_groups, load_curators
 db = Database()
 
 # Функции для работы с данными
+def load_personalized_data(user_id: str, group: str, username: str, full_name: str, is_curator: bool) -> Dict[str, Any]:
+    """Загружает персональные данные для конкретного пользователя"""
+    try:
+        # Получаем данные пользователя
+        user_data = db.users.get(str(user_id), {})
+        groups = load_groups()
+        group_name = groups.get(group, {}).get("name", group)
+        
+        # Получаем данные для группы пользователя
+        group_messages = db.messages.get(group, [])
+        group_questions = db.questions.get(group, [])
+        group_polls = db.get_group_polls(group, limit=10)
+        group_students = db.get_students(group)
+        
+        # Преобразуем в формат для веб-приложения
+        schedule_data = []
+        announcements_data = []
+        polls_data = []
+        questions_data = []
+        
+        # Обрабатываем сообщения как объявления (только для группы пользователя)
+        for msg in group_messages:
+            if msg.get("type") == "announcement":
+                announcements_data.append({
+                    "id": msg.get("id", 0),
+                    "title": msg.get("title", "Объявление"),
+                    "time": msg.get("timestamp", "Недавно"),
+                    "content": msg.get("content", ""),
+                    "priority": "high" if msg.get("important", False) else "medium",
+                    "author": msg.get("author", "Система"),
+                    "read": False
+                })
+        
+        # Обрабатываем вопросы (только для группы пользователя)
+        for q in group_questions:
+            # Если это куратор, показываем все вопросы
+            # Если это студент, показываем только свои вопросы
+            if is_curator or str(q.get("user_id")) == str(user_id):
+                questions_data.append({
+                    "id": q.get("id", 0),
+                    "student": q.get("student_name", "Студент"),
+                    "question": q.get("question", ""),
+                    "time": q.get("timestamp", "Недавно"),
+                    "status": "answered" if q.get("answer") else "pending",
+                    "answer": q.get("answer", None)
+                })
+        
+        # Обрабатываем голосования (только для группы пользователя)
+        for poll_id, poll in group_polls:
+            polls_data.append({
+                "id": poll_id,
+                "title": poll.get("title", "Голосование посещаемости"),
+                "description": poll.get("description", ""),
+                "status": "active" if poll.get("status") == "active" else "ended",
+                "created_at": poll.get("created_at", "2024-09-28T09:00:00"),
+                "options": [
+                    {"id": "present", "text": "Присутствую", "votes": poll.get("present", 0)},
+                    {"id": "absent", "text": "Отсутствую", "votes": poll.get("absent", 0)}
+                ],
+                "total_votes": poll.get("present", 0) + poll.get("absent", 0),
+                "user_vote": poll.get("votes", {}).get(str(user_id))  # Голос пользователя
+            })
+        
+        return {
+            "schedule": schedule_data,
+            "announcements": announcements_data,
+            "polls": polls_data,
+            "questions": questions_data,
+            "user_info": {
+                "id": user_id,
+                "first_name": full_name.split()[0] if full_name else username,
+                "last_name": " ".join(full_name.split()[1:]) if len(full_name.split()) > 1 else "",
+                "username": username,
+                "group": group,
+                "group_name": group_name,
+                "role": "curator" if is_curator else "student",
+                "faculty": groups.get(group, {}).get("faculty", ""),
+                "full_name": full_name
+            },
+            "group_info": {
+                "id": group,
+                "name": group_name,
+                "students_count": len(group_students),
+                "faculty": groups.get(group, {}).get("faculty", "")
+            }
+        }
+    except Exception as e:
+        logger.error(f"Ошибка загрузки персональных данных: {e}")
+        return load_demo_data()
+
 def load_real_data() -> Dict[str, Any]:
     """Загружает реальные данные из базы данных бота"""
     try:
@@ -306,19 +396,29 @@ async def serve_mobile_test():
 async def get_app_data(request: Request):
     """Получение данных для веб-приложения"""
     try:
-        # Получаем данные пользователя из Telegram Web App
-        user_agent = request.headers.get("user-agent", "")
-        telegram_data = request.headers.get("x-telegram-data", "")
+        # Получаем параметры пользователя из URL
+        user_id = request.query_params.get("user_id")
+        group = request.query_params.get("group")
+        username = request.query_params.get("username", "Unknown")
+        full_name = request.query_params.get("full_name", "")
+        is_curator = request.query_params.get("is_curator", "false").lower() == "true"
         
         # Логируем запрос
-        logger.info(f"Запрос данных от {request.client.host}, User-Agent: {user_agent[:100]}")
+        logger.info(f"Запрос данных от пользователя {user_id} ({username}) в группе {group}")
         
-        # Возвращаем демо-данные
-        data = load_real_data()
+        # Загружаем персональные данные пользователя
+        data = load_personalized_data(user_id, group, username, full_name, is_curator)
         
         return JSONResponse({
             "status": "success",
             "data": data,
+            "user_info": {
+                "user_id": user_id,
+                "username": username,
+                "full_name": full_name,
+                "group": group,
+                "is_curator": is_curator
+            },
             "timestamp": datetime.now().isoformat(),
             "server": "FastAPI with Context7 optimizations"
         })

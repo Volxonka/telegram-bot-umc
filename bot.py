@@ -87,6 +87,9 @@ async def handle_webapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     user_id = query.from_user.id
+    username = query.from_user.username or "Unknown"
+    first_name = query.from_user.first_name or ""
+    last_name = query.from_user.last_name or ""
     group = query.data.replace("webapp_", "")
     user_group = db.get_user_group(user_id)
     
@@ -97,11 +100,21 @@ async def handle_webapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Get web app URL from configuration
+    # Получаем данные пользователя
+    user_data = db.users.get(str(user_id), {})
+    full_name = user_data.get("full_name", f"{first_name} {last_name}".strip())
+    is_curator = db.is_curator(user_id, group)
+    
+    # Создаем персонализированный URL с данными пользователя
     webapp_url = get_webapp_url("main")
     
+    # Создаем WebAppInfo с данными пользователя
+    webapp_info = WebAppInfo(
+        url=f"{webapp_url}?user_id={user_id}&group={group}&username={username}&full_name={full_name}&is_curator={is_curator}"
+    )
+    
     keyboard = [
-        [InlineKeyboardButton("🚀 Открыть приложение", web_app=get_webapp_info())],
+        [InlineKeyboardButton("🚀 Открыть приложение", web_app=webapp_info)],
         [InlineKeyboardButton("🔙 Назад в меню", callback_data=f"back_to_menu_{group}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)

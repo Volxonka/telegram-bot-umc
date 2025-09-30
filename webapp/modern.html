@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>УМЦ - Университет Мировых Цивилизаций</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .grid-cols-1 {
+                grid-template-columns: 1fr;
+            }
+            .flex-col {
+                flex-direction: column;
+            }
+            .space-y-6 > * + * {
+                margin-top: 1.5rem;
+            }
+            nav.flex {
+                overflow-x: auto;
+                padding-bottom: 0.5rem;
+            }
+            nav button {
+                white-space: nowrap;
+            }
+            .grid-cols-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .md\:grid-cols-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+        .active-tab {
+            border-bottom: 3px solid #6366f1;
+            color: #6366f1;
+            font-weight: 500;
+        }
+        .schedule-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .expandable-content.expanded {
+            max-height: 1000px;
+            transition: max-height 0.3s ease-in;
+        }
+        .poll-option {
+            transition: all 0.3s ease;
+        }
+        .poll-option:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        .poll-option.selected {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid #6366f1;
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 min-h-screen text-white">
+    <div id="vanta-bg" class="fixed inset-0 z-0"></div>
+    
+    <div class="relative z-10 container mx-auto px-4 py-8">
+        <!-- Header Section -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div class="flex items-center space-x-4 mb-6 md:mb-0">
+                <div class="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center">
+                    <i data-feather="user" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <h1 id="user-name" class="text-2xl font-bold">Загрузка...</h1>
+                    <p id="user-group" class="text-indigo-200">Группа: Загрузка...</p>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl p-4 flex items-center space-x-4">
+                <div class="text-center">
+                    <p class="text-sm text-indigo-200">Статус</p>
+                    <p id="user-role" class="text-2xl font-bold">Студент</p>
+                </div>
+                <div class="h-8 w-px bg-gray-600"></div>
+                <div class="text-center">
+                    <p class="text-sm text-indigo-200">Группа</p>
+                    <p id="user-group-short" class="text-2xl font-bold">-</p>
+                </div>
+                <div class="h-8 w-px bg-gray-600"></div>
+                <div class="text-center">
+                    <p class="text-sm text-indigo-200">Активность</p>
+                    <p class="text-2xl font-bold">Онлайн</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex space-x-8 border-b border-gray-700 mb-8">
+            <button class="pb-4 px-1 active-tab" data-tab="home">Главная</button>
+            <button class="pb-4 px-1 hover:text-indigo-300 transition" data-tab="schedule">Расписание</button>
+            <button class="pb-4 px-1 hover:text-indigo-300 transition" data-tab="polls">Голосования</button>
+            <button class="pb-4 px-1 hover:text-indigo-300 transition" data-tab="questions">Вопросы</button>
+            <button class="pb-4 px-1 hover:text-indigo-300 transition" data-tab="messages">Сообщения</button>
+        </nav>
+
+        <!-- Main Content -->
+        <div id="content-container">
+            <!-- Home Tab -->
+            <div id="home-tab" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Today's Schedule -->
+                    <div class="glass-card rounded-xl p-6 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold">Сегодня</h2>
+                            <button id="expand-schedule" class="flex items-center space-x-2 text-indigo-300 hover:text-indigo-200 transition">
+                                <span>Все</span>
+                                <i data-feather="chevron-right" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        
+                        <div id="schedule-container" class="space-y-4">
+                            <div class="loading-spinner text-center py-8">
+                                <i data-feather="loader" class="w-8 h-8 mx-auto"></i>
+                                <p class="mt-2">Загрузка расписания...</p>
+                            </div>
+                        </div>
+                        
+                        <div id="full-schedule" class="expandable-content">
+                            <div class="mt-6 pt-6 border-t border-gray-700">
+                                <h3 class="text-lg font-semibold mb-4">Полное расписание</h3>
+                                <div id="full-schedule-content" class="space-y-4">
+                                    <!-- Полное расписание будет загружено здесь -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions & Voting -->
+                    <div class="space-y-6">
+                        <div class="glass-card rounded-xl p-6">
+                            <h2 class="text-xl font-bold mb-4">Быстрые действия</h2>
+                            <div class="grid grid-cols-2 gap-4">
+                                <button onclick="askQuestion()" class="bg-indigo-600 hover:bg-indigo-700 rounded-lg p-4 flex flex-col items-center justify-center transition">
+                                    <i data-feather="message-square" class="w-6 h-6 mb-2"></i>
+                                    <span>Вопрос</span>
+                                </button>
+                                <button onclick="viewMessages()" class="bg-purple-600 hover:bg-purple-700 rounded-lg p-4 flex flex-col items-center justify-center transition">
+                                    <i data-feather="mail" class="w-6 h-6 mb-2"></i>
+                                    <span>Сообщения</span>
+                                </button>
+                                <button onclick="viewPolls()" class="bg-pink-600 hover:bg-pink-700 rounded-lg p-4 flex flex-col items-center justify-center transition">
+                                    <i data-feather="vote" class="w-6 h-6 mb-2"></i>
+                                    <span>Голосования</span>
+                                </button>
+                                <button onclick="viewSchedule()" class="bg-blue-600 hover:bg-blue-700 rounded-lg p-4 flex flex-col items-center justify-center transition">
+                                    <i data-feather="calendar" class="w-6 h-6 mb-2"></i>
+                                    <span>Расписание</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="glass-card rounded-xl p-6">
+                            <h2 class="text-xl font-bold mb-4">Активные голосования</h2>
+                            <div id="polls-container" class="space-y-4">
+                                <div class="loading-spinner text-center py-4">
+                                    <i data-feather="loader" class="w-6 h-6 mx-auto"></i>
+                                    <p class="mt-2 text-sm">Загрузка голосований...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Tab -->
+            <div id="schedule-tab" class="tab-content hidden">
+                <div class="glass-card rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-6">Расписание</h2>
+                    <div id="full-schedule-tab" class="space-y-4">
+                        <!-- Полное расписание -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Polls Tab -->
+            <div id="polls-tab" class="tab-content hidden">
+                <div class="glass-card rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-6">Голосования</h2>
+                    <div id="all-polls-container" class="space-y-4">
+                        <!-- Все голосования -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions Tab -->
+            <div id="questions-tab" class="tab-content hidden">
+                <div class="glass-card rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-6">Вопросы</h2>
+                    <div class="mb-6">
+                        <button onclick="askQuestion()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition">
+                            <i data-feather="plus" class="w-4 h-4 inline mr-2"></i>
+                            Задать вопрос
+                        </button>
+                    </div>
+                    <div id="questions-container" class="space-y-4">
+                        <!-- Вопросы и ответы -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Tab -->
+            <div id="messages-tab" class="tab-content hidden">
+                <div class="glass-card rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-6">Сообщения</h2>
+                    <div id="messages-container" class="space-y-4">
+                        <!-- Сообщения -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div id="question-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Задать вопрос</h3>
+            <textarea id="question-text" placeholder="Введите ваш вопрос..." class="w-full h-32 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400 resize-none"></textarea>
+            <div class="flex space-x-3 mt-4">
+                <button onclick="submitQuestion()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 py-2 rounded-lg transition">
+                    Отправить
+                </button>
+                <button onclick="closeQuestionModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded-lg transition">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        let tg = window.Telegram?.WebApp;
+        if (!tg) {
+            tg = {
+                ready: () => {},
+                expand: () => {},
+                showAlert: (message) => alert(message),
+                initDataUnsafe: {}
+            };
+        }
+
+        // Глобальные переменные
+        let currentUser = null;
+        let currentGroup = null;
+        let userRole = 'student';
+        let allScheduleData = [];
+        let allPollsData = [];
+
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            try {
+                // Инициализация Telegram Web App
+                tg.ready();
+                tg.expand();
+
+                // Инициализация Vanta.js фона
+                VANTA.NET({
+                    el: "#vanta-bg",
+                    mouseControls: true,
+                    touchControls: true,
+                    gyroControls: false,
+                    minHeight: 200.00,
+                    minWidth: 200.00,
+                    scale: 1.00,
+                    scaleMobile: 1.00,
+                    color: 0x6366f1,
+                    backgroundColor: 0x111827,
+                    points: 10.00,
+                    maxDistance: 22.00,
+                    spacing: 18.00
+                });
+
+                // Инициализация иконок
+                feather.replace();
+
+                // Получаем параметры пользователя из URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const user_id = urlParams.get('user_id');
+                const group = urlParams.get('group');
+                const username = urlParams.get('username');
+                const full_name = urlParams.get('full_name');
+                const is_curator = urlParams.get('is_curator') === 'true';
+
+                // Обновляем информацию о пользователе
+                updateUserInfo(full_name, group, is_curator);
+
+                // Загружаем данные
+                await loadAllData(user_id, group);
+
+                // Инициализация табов
+                initializeTabs();
+
+                // Инициализация развертываемых секций
+                initializeExpandableSections();
+
+            } catch (error) {
+                console.error('Ошибка инициализации:', error);
+                showError('Ошибка загрузки приложения');
+            }
+        }
+
+        function updateUserInfo(fullName, group, isCurator) {
+            document.getElementById('user-name').textContent = fullName || 'Пользователь';
+            document.getElementById('user-group').textContent = `Группа: ${group || 'Неизвестно'}`;
+            document.getElementById('user-role').textContent = isCurator ? 'Куратор' : 'Студент';
+            document.getElementById('user-group-short').textContent = group || '-';
+        }
+
+        async function loadAllData(userId, group) {
+            try {
+                const response = await fetch(`/api/data?user_id=${userId}&group=${group}`);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const data = result.data;
+                    
+                    // Загружаем расписание
+                    if (data.schedule) {
+                        allScheduleData = data.schedule;
+                        displaySchedule(data.schedule, 'schedule-container');
+                        displayFullSchedule(data.schedule, 'full-schedule-content');
+                        displayFullSchedule(data.schedule, 'full-schedule-tab');
+                    }
+                    
+                    // Загружаем голосования
+                    if (data.polls) {
+                        allPollsData = data.polls;
+                        displayPolls(data.polls, 'polls-container');
+                        displayAllPolls(data.polls, 'all-polls-container');
+                    }
+                    
+                    // Загружаем вопросы
+                    if (data.questions) {
+                        displayQuestions(data.questions, 'questions-container');
+                    }
+                    
+                    // Загружаем сообщения
+                    if (data.announcements) {
+                        displayMessages(data.announcements, 'messages-container');
+                    }
+                } else {
+                    showError('Ошибка загрузки данных');
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных:', error);
+                showError('Ошибка загрузки данных');
+            }
+        }
+
+        function displaySchedule(schedule, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!schedule || schedule.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">📅 Расписание не добавлено<br><small>Куратор добавит расписание в ближайшее время</small></div>';
+                return;
+            }
+
+            let html = '';
+            schedule.slice(0, 3).forEach((item, index) => {
+                const colors = ['bg-indigo-600', 'bg-purple-600', 'bg-pink-600'];
+                const icons = ['book', 'code', 'cpu'];
+                
+                html += `
+                    <div class="schedule-card bg-gray-800 bg-opacity-50 rounded-lg p-4 transition duration-300 fade-in">
+                        <div class="flex items-start space-x-4">
+                            <div class="${colors[index % colors.length]} rounded-lg p-3">
+                                <i data-feather="${icons[index % icons.length]}" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold">${item.subject || 'Предмет не указан'}</h3>
+                                <p class="text-sm text-gray-300">${item.time || 'Время не указано'} ${item.room ? `| ${item.room}` : ''}</p>
+                                <p class="text-sm text-gray-400 mt-1">${item.teacher || 'Преподаватель не указан'}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            feather.replace();
+        }
+
+        function displayFullSchedule(schedule, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!schedule || schedule.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">📅 Расписание не добавлено</div>';
+                return;
+            }
+
+            let html = '';
+            schedule.forEach((item, index) => {
+                const colors = ['bg-indigo-600', 'bg-purple-600', 'bg-pink-600', 'bg-green-600', 'bg-yellow-600'];
+                const icons = ['book', 'code', 'cpu', 'database', 'layers'];
+                
+                html += `
+                    <div class="schedule-card bg-gray-800 bg-opacity-50 rounded-lg p-4 transition duration-300 fade-in">
+                        <div class="flex items-start space-x-4">
+                            <div class="${colors[index % colors.length]} rounded-lg p-3">
+                                <i data-feather="${icons[index % icons.length]}" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold">${item.subject || 'Предмет не указан'}</h3>
+                                <p class="text-sm text-gray-300">${item.time || 'Время не указано'} ${item.room ? `| ${item.room}` : ''}</p>
+                                <p class="text-sm text-gray-400 mt-1">${item.teacher || 'Преподаватель не указан'}</p>
+                                ${item.day ? `<p class="text-sm text-indigo-300 mt-1">📅 ${item.day}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            feather.replace();
+        }
+
+        function displayPolls(polls, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!polls || polls.length === 0) {
+                container.innerHTML = '<div class="text-center py-4 text-gray-400">🗳️ Нет активных голосований</div>';
+                return;
+            }
+
+            let html = '';
+            polls.slice(0, 2).forEach(poll => {
+                const isActive = poll.status === 'active';
+                const userVote = poll.user_vote;
+                
+                html += `
+                    <div class="bg-gray-800 bg-opacity-50 rounded-lg p-4 fade-in">
+                        <h3 class="font-semibold mb-2">${poll.title}</h3>
+                        ${isActive ? `
+                            <div class="space-y-2">
+                                <div class="poll-option flex items-center justify-between p-2 rounded cursor-pointer" data-poll="${poll.id}" data-option="present">
+                                    <span>✅ Присутствую</span>
+                                    <span class="text-sm text-gray-400">${poll.options[0]?.votes || 0}</span>
+                                </div>
+                                <div class="poll-option flex items-center justify-between p-2 rounded cursor-pointer" data-poll="${poll.id}" data-option="absent">
+                                    <span>❌ Отсутствую</span>
+                                    <span class="text-sm text-gray-400">${poll.options[1]?.votes || 0}</span>
+                                </div>
+                            </div>
+                            <button onclick="votePoll(${poll.id})" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 py-2 rounded-lg transition text-sm">
+                                ${userVote ? 'Изменить голос' : 'Проголосовать'}
+                            </button>
+                        ` : `
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span>✅ Присутствуют</span>
+                                    <div class="w-24 bg-gray-700 rounded-full h-2">
+                                        <div class="bg-indigo-500 h-2 rounded-full" style="width: ${poll.options[0]?.votes || 0}%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>❌ Отсутствуют</span>
+                                    <div class="w-24 bg-gray-700 rounded-full h-2">
+                                        <div class="bg-indigo-500 h-2 rounded-full" style="width: ${poll.options[1]?.votes || 0}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-center text-sm text-gray-400">
+                                Всего голосов: ${poll.total_votes}
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function displayAllPolls(polls, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!polls || polls.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">🗳️ Нет голосований</div>';
+                return;
+            }
+
+            let html = '';
+            polls.forEach(poll => {
+                const isActive = poll.status === 'active';
+                const userVote = poll.user_vote;
+                
+                html += `
+                    <div class="bg-gray-800 bg-opacity-50 rounded-lg p-6 fade-in">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-semibold text-lg">${poll.title}</h3>
+                            <span class="px-3 py-1 rounded-full text-xs ${isActive ? 'bg-green-600' : 'bg-gray-600'}">
+                                ${isActive ? 'Активно' : 'Завершено'}
+                            </span>
+                        </div>
+                        ${isActive ? `
+                            <div class="space-y-3">
+                                <div class="poll-option flex items-center justify-between p-3 rounded cursor-pointer border border-gray-600" data-poll="${poll.id}" data-option="present">
+                                    <span>✅ Присутствую</span>
+                                    <span class="text-sm text-gray-400">${poll.options[0]?.votes || 0}</span>
+                                </div>
+                                <div class="poll-option flex items-center justify-between p-3 rounded cursor-pointer border border-gray-600" data-poll="${poll.id}" data-option="absent">
+                                    <span>❌ Отсутствую</span>
+                                    <span class="text-sm text-gray-400">${poll.options[1]?.votes || 0}</span>
+                                </div>
+                            </div>
+                            <button onclick="votePoll(${poll.id})" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg transition">
+                                ${userVote ? 'Изменить голос' : 'Проголосовать'}
+                            </button>
+                        ` : `
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span>✅ Присутствуют</span>
+                                    <div class="w-32 bg-gray-700 rounded-full h-3">
+                                        <div class="bg-indigo-500 h-3 rounded-full" style="width: ${poll.options[0]?.votes || 0}%"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-400">${poll.options[0]?.votes || 0}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>❌ Отсутствуют</span>
+                                    <div class="w-32 bg-gray-700 rounded-full h-3">
+                                        <div class="bg-indigo-500 h-3 rounded-full" style="width: ${poll.options[1]?.votes || 0}%"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-400">${poll.options[1]?.votes || 0}</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-center text-sm text-gray-400">
+                                Всего голосов: ${poll.total_votes}
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function displayQuestions(questions, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!questions || questions.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">❓ Нет вопросов</div>';
+                return;
+            }
+
+            let html = '';
+            questions.forEach(question => {
+                html += `
+                    <div class="bg-gray-800 bg-opacity-50 rounded-lg p-4 fade-in">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold">Вопрос #${question.id}</h3>
+                            <span class="px-2 py-1 rounded text-xs ${question.status === 'answered' ? 'bg-green-600' : 'bg-yellow-600'}">
+                                ${question.status === 'answered' ? 'Отвечен' : 'Ожидает ответа'}
+                            </span>
+                        </div>
+                        <p class="text-gray-300 mb-3">${question.question}</p>
+                        ${question.answer ? `
+                            <div class="bg-gray-700 bg-opacity-50 rounded p-3">
+                                <p class="text-sm text-gray-400 mb-1">Ответ:</p>
+                                <p class="text-white">${question.answer}</p>
+                            </div>
+                        ` : ''}
+                        <p class="text-xs text-gray-500 mt-2">${question.time}</p>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function displayMessages(messages, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!messages || messages.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400">📨 Нет сообщений</div>';
+                return;
+            }
+
+            let html = '';
+            messages.forEach(message => {
+                html += `
+                    <div class="bg-gray-800 bg-opacity-50 rounded-lg p-4 fade-in">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold">${message.title}</h3>
+                            <span class="px-2 py-1 rounded text-xs ${message.priority === 'high' ? 'bg-red-600' : 'bg-blue-600'}">
+                                ${message.priority === 'high' ? 'Важно' : 'Обычное'}
+                            </span>
+                        </div>
+                        <p class="text-gray-300 mb-3">${message.content}</p>
+                        <div class="flex justify-between items-center text-xs text-gray-500">
+                            <span>От: ${message.author}</span>
+                            <span>${message.time}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function initializeTabs() {
+            const tabs = document.querySelectorAll('nav button[data-tab]');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const targetTab = this.getAttribute('data-tab');
+                    
+                    // Убираем активный класс со всех табов
+                    tabs.forEach(t => t.classList.remove('active-tab'));
+                    // Добавляем активный класс к текущему табу
+                    this.classList.add('active-tab');
+                    
+                    // Скрываем все контенты
+                    tabContents.forEach(content => content.classList.add('hidden'));
+                    // Показываем нужный контент
+                    document.getElementById(`${targetTab}-tab`).classList.remove('hidden');
+                });
+            });
+        }
+
+        function initializeExpandableSections() {
+            const expandButtons = document.querySelectorAll('[id^="expand-"]');
+            
+            expandButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.id.replace('expand-', '');
+                    const content = document.getElementById(targetId);
+                    const icon = this.querySelector('i');
+                    
+                    if (content.classList.contains('expanded')) {
+                        content.classList.remove('expanded');
+                        icon.style.transform = 'rotate(0deg)';
+                        this.querySelector('span').textContent = 'Все';
+                    } else {
+                        content.classList.add('expanded');
+                        icon.style.transform = 'rotate(90deg)';
+                        this.querySelector('span').textContent = 'Скрыть';
+                    }
+                });
+            });
+        }
+
+        async function votePoll(pollId) {
+            try {
+                const selectedOption = document.querySelector(`[data-poll="${pollId}"].selected`);
+                if (!selectedOption) {
+                    tg.showAlert('Выберите вариант ответа');
+                    return;
+                }
+
+                const vote = selectedOption.getAttribute('data-option');
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('user_id');
+
+                const response = await fetch(`/api/polls/${pollId}/vote`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        vote: vote
+                    })
+                });
+
+                if (response.ok) {
+                    tg.showAlert('Голос засчитан!');
+                    // Перезагружаем данные
+                    await loadAllData(userId, urlParams.get('group'));
+                } else {
+                    tg.showAlert('Ошибка при голосовании');
+                }
+            } catch (error) {
+                console.error('Ошибка голосования:', error);
+                tg.showAlert('Ошибка при голосовании');
+            }
+        }
+
+        function askQuestion() {
+            document.getElementById('question-modal').classList.remove('hidden');
+        }
+
+        function closeQuestionModal() {
+            document.getElementById('question-modal').classList.add('hidden');
+            document.getElementById('question-text').value = '';
+        }
+
+        async function submitQuestion() {
+            const questionText = document.getElementById('question-text').value.trim();
+            if (!questionText) {
+                tg.showAlert('Введите текст вопроса');
+                return;
+            }
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('user_id');
+                const group = urlParams.get('group');
+
+                const response = await fetch('/api/question', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        group: group,
+                        question: questionText
+                    })
+                });
+
+                if (response.ok) {
+                    tg.showAlert('Вопрос отправлен!');
+                    closeQuestionModal();
+                    // Перезагружаем данные
+                    await loadAllData(userId, group);
+                } else {
+                    tg.showAlert('Ошибка при отправке вопроса');
+                }
+            } catch (error) {
+                console.error('Ошибка отправки вопроса:', error);
+                tg.showAlert('Ошибка при отправке вопроса');
+            }
+        }
+
+        function viewMessages() {
+            document.querySelector('[data-tab="messages"]').click();
+        }
+
+        function viewPolls() {
+            document.querySelector('[data-tab="polls"]').click();
+        }
+
+        function viewSchedule() {
+            document.querySelector('[data-tab="schedule"]').click();
+        }
+
+        function showError(message) {
+            document.body.innerHTML = `
+                <div class="container mx-auto px-4 py-8">
+                    <div class="glass-card rounded-xl p-6 text-center">
+                        <h2 class="text-xl font-bold mb-4">Ошибка</h2>
+                        <p class="text-gray-300">${message}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Обработка выбора опций в голосованиях
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.poll-option')) {
+                const option = e.target.closest('.poll-option');
+                const pollId = option.getAttribute('data-poll');
+                
+                // Убираем выделение с других опций этого голосования
+                document.querySelectorAll(`[data-poll="${pollId}"]`).forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                
+                // Выделяем выбранную опцию
+                option.classList.add('selected');
+            }
+        });
+    </script>
+</body>
+</html>

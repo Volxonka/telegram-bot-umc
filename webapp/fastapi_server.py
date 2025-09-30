@@ -383,7 +383,7 @@ def load_demo_data() -> Dict[str, Any]:
 async def serve_webapp():
     """Главная страница веб-приложения"""
     try:
-        html_file = STATIC_DIR / "simple.html"
+        html_file = STATIC_DIR / "modern.html"
         if html_file.exists():
             return FileResponse(html_file)
         else:

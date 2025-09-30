@@ -613,13 +613,13 @@ async def vote_poll(poll_id: int, request: Request):
 if __name__ == "__main__":
     import uvicorn
     
-    print("🚀 Запуск FastAPI сервера для УМЦ Web App...")
-    print(f"📁 Статические файлы: {STATIC_DIR}")
-    print(f"🌐 Порт: {PORT}")
-    print(f"📱 Веб-приложение: http://localhost:{PORT}")
-    print(f"📚 API документация: http://localhost:{PORT}/api/docs")
-    print(f"🔍 Context7 info: http://localhost:{PORT}/api/context7/info")
-    print("Нажмите Ctrl+C для остановки")
+    print("FastAPI server starting for UMC Web App...")
+    print(f"Static files: {STATIC_DIR}")
+    print(f"Port: {PORT}")
+    print(f"Web app: http://localhost:{PORT}")
+    print(f"API docs: http://localhost:{PORT}/api/docs")
+    print(f"Context7 info: http://localhost:{PORT}/api/context7/info")
+    print("Press Ctrl+C to stop")
     
     uvicorn.run(
         "fastapi_server:app",

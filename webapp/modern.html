@@ -354,7 +354,12 @@
             try {
                 console.log('Загружаем данные для пользователя:', userId, 'группа:', group);
                 
-                const response = await fetch(`/api/data?user_id=${userId}&group=${group}`);
+                // Определяем базовый URL для API
+                const baseUrl = window.location.origin;
+                const apiUrl = `${baseUrl}/api/data?user_id=${userId}&group=${group}`;
+                console.log('API URL:', apiUrl);
+                
+                const response = await fetch(apiUrl);
                 console.log('Ответ сервера:', response.status);
                 
                 if (!response.ok) {
@@ -716,7 +721,8 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const userId = urlParams.get('user_id');
 
-                const response = await fetch(`/api/polls/${pollId}/vote`, {
+                const baseUrl = window.location.origin;
+                const response = await fetch(`${baseUrl}/api/polls/${pollId}/vote`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -761,7 +767,8 @@
                 const userId = urlParams.get('user_id');
                 const group = urlParams.get('group');
 
-                const response = await fetch('/api/question', {
+                const baseUrl = window.location.origin;
+                const response = await fetch(`${baseUrl}/api/question`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -83,7 +83,7 @@ PORT = int(os.environ.get('PORT', 10000))
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Также обслуживаем файлы напрямую в корне
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="root")
+# app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="root")
 
 # Импортируем модули бота для работы с БД
 import sys
@@ -420,6 +420,32 @@ async def serve_webapp():
         logger.error(f"Ошибка загрузки главной страницы: {e}")
         return HTMLResponse("<h1>Ошибка сервера</h1>", status_code=500)
 
+@app.get("/modern.html", response_class=HTMLResponse)
+async def serve_modern():
+    """Современная версия веб-приложения"""
+    try:
+        html_file = STATIC_DIR / "modern.html"
+        if html_file.exists():
+            return FileResponse(html_file)
+        else:
+            return HTMLResponse("<h1>Современная версия не найдена</h1>", status_code=404)
+    except Exception as e:
+        logger.error(f"Ошибка загрузки современной версии: {e}")
+        return HTMLResponse("<h1>Ошибка сервера</h1>", status_code=500)
+
+@app.get("/simple.html", response_class=HTMLResponse)
+async def serve_simple():
+    """Простая версия веб-приложения"""
+    try:
+        html_file = STATIC_DIR / "simple.html"
+        if html_file.exists():
+            return FileResponse(html_file)
+        else:
+            return HTMLResponse("<h1>Простая версия не найдена</h1>", status_code=404)
+    except Exception as e:
+        logger.error(f"Ошибка загрузки простой версии: {e}")
+        return HTMLResponse("<h1>Ошибка сервера</h1>", status_code=500)
+
 @app.get("/enhanced.html", response_class=HTMLResponse)
 async def serve_enhanced():
     """Улучшенная версия веб-приложения"""
@@ -571,6 +597,24 @@ async def test_endpoint():
             "message": str(e),
             "timestamp": datetime.now().isoformat()
         }, status_code=500)
+
+@app.get("/api/routes")
+async def list_routes():
+    """Список всех доступных маршрутов"""
+    routes = []
+    for route in app.routes:
+        if hasattr(route, 'methods') and hasattr(route, 'path'):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods)
+            })
+    
+    return JSONResponse({
+        "status": "success",
+        "routes": routes,
+        "total": len(routes),
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.get("/api/context7/info")
 async def context7_info():

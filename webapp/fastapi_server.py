@@ -109,11 +109,24 @@ def load_personalized_data(user_id: str, group: str, username: str, full_name: s
         group_polls = db.get_group_polls(group, limit=10)
         group_students = db.get_students(group)
         
+        # Получаем расписание группы
+        group_schedule = db.get_group_schedule(group)
+        
         # Преобразуем в формат для веб-приложения
         schedule_data = []
         announcements_data = []
         polls_data = []
         questions_data = []
+        
+        # Обрабатываем расписание группы
+        for schedule_item in group_schedule:
+            schedule_data.append({
+                "time": f"{schedule_item.get('start_time', '09:00')} - {schedule_item.get('end_time', '10:30')}",
+                "subject": schedule_item.get('subject', 'Предмет не указан'),
+                "teacher": schedule_item.get('teacher', 'Преподаватель не указан'),
+                "room": schedule_item.get('room', ''),
+                "day": schedule_item.get('day', 'Понедельник')
+            })
         
         # Обрабатываем сообщения как объявления (только для группы пользователя)
         for msg in group_messages:
@@ -144,6 +157,11 @@ def load_personalized_data(user_id: str, group: str, username: str, full_name: s
         
         # Обрабатываем голосования (только для группы пользователя)
         for poll_id, poll in group_polls:
+            # Получаем голос пользователя
+            user_vote = None
+            if user_id and poll.get("votes"):
+                user_vote = poll.get("votes", {}).get(str(user_id))
+            
             polls_data.append({
                 "id": poll_id,
                 "title": poll.get("title", "Голосование посещаемости"),
@@ -155,7 +173,7 @@ def load_personalized_data(user_id: str, group: str, username: str, full_name: s
                     {"id": "absent", "text": "Отсутствую", "votes": poll.get("absent", 0)}
                 ],
                 "total_votes": poll.get("present", 0) + poll.get("absent", 0),
-                "user_vote": poll.get("votes", {}).get(str(user_id))  # Голос пользователя
+                "user_vote": user_vote
             })
         
         return {
@@ -540,9 +558,34 @@ async def vote_poll(poll_id: int, request: Request):
     """Голосование в опросе"""
     try:
         data = await request.json()
-        # Здесь можно добавить логику голосования в БД
-        return JSONResponse({"status": "success", "message": "Голос засчитан"})
+        user_id = data.get("user_id")
+        vote = data.get("vote")
+        
+        if not user_id or not vote:
+            return JSONResponse(
+                {"status": "error", "message": "Недостаточно данных для голосования"}, 
+                status_code=400
+            )
+        
+        # Сохраняем голос в базе данных бота
+        success = db.vote_poll(poll_id, user_id, vote)
+        
+        if success:
+            return JSONResponse({
+                "status": "success", 
+                "message": "Голос засчитан",
+                "poll_id": poll_id,
+                "user_id": user_id,
+                "vote": vote
+            })
+        else:
+            return JSONResponse(
+                {"status": "error", "message": "Ошибка сохранения голоса"}, 
+                status_code=400
+            )
+            
     except Exception as e:
+        logger.error(f"Ошибка голосования: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 if __name__ == "__main__":

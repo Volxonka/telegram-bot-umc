@@ -132,6 +132,7 @@
             <button class="pb-4 px-1 hover:text-indigo-300 transition" data-tab="polls">Голосования</button>
             <button class="pb-4 px-1 hover:text-indigo-300 transition" data-tab="questions">Вопросы</button>
             <button class="pb-4 px-1 hover:text-indigo-300 transition" data-tab="messages">Сообщения</button>
+            <button class="pb-4 px-1 hover:text-indigo-300 transition hidden" data-tab="admin" id="admin-tab-btn">Админ-панель</button>
         </nav>
 
         <!-- Main Content -->
@@ -248,6 +249,65 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Admin Panel Tab -->
+            <div id="admin-tab" class="tab-content hidden">
+                <div class="space-y-6">
+                    <!-- Quick Actions -->
+                    <div class="glass-card rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-6">Быстрые действия</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button onclick="showCreateScheduleModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-lg transition">
+                                <i data-feather="calendar" class="w-6 h-6 mx-auto mb-2"></i>
+                                <span class="text-sm">Добавить расписание</span>
+                            </button>
+                            <button onclick="showCreatePollModal()" class="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg transition">
+                                <i data-feather="vote" class="w-6 h-6 mx-auto mb-2"></i>
+                                <span class="text-sm">Создать голосование</span>
+                            </button>
+                            <button onclick="showCreateAnnouncementModal()" class="bg-yellow-600 hover:bg-yellow-700 text-white p-4 rounded-lg transition">
+                                <i data-feather="megaphone" class="w-6 h-6 mx-auto mb-2"></i>
+                                <span class="text-sm">Объявление</span>
+                            </button>
+                            <button onclick="showManageStudentsModal()" class="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg transition">
+                                <i data-feather="users" class="w-6 h-6 mx-auto mb-2"></i>
+                                <span class="text-sm">Студенты</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="glass-card rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-6">Статистика группы</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-indigo-400" id="total-students">0</div>
+                                <div class="text-sm text-gray-400">Студентов</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-400" id="active-polls">0</div>
+                                <div class="text-sm text-gray-400">Активных голосований</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-yellow-400" id="pending-questions">0</div>
+                                <div class="text-sm text-gray-400">Вопросов</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-400" id="total-announcements">0</div>
+                                <div class="text-sm text-gray-400">Объявлений</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="glass-card rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-6">Последняя активность</h2>
+                        <div id="admin-activity-container" class="space-y-3">
+                            <!-- Активность -->
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -261,6 +321,78 @@
                     Отправить
                 </button>
                 <button onclick="closeQuestionModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded-lg transition">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Modals -->
+    <!-- Create Schedule Modal -->
+    <div id="create-schedule-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Добавить расписание</h3>
+            <div class="space-y-4">
+                <input type="text" id="schedule-subject" placeholder="Предмет" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400">
+                <input type="text" id="schedule-teacher" placeholder="Преподаватель" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400">
+                <input type="text" id="schedule-room" placeholder="Аудитория" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400">
+                <input type="text" id="schedule-time" placeholder="Время (например: 09:00-10:30)" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400">
+                <select id="schedule-day" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white">
+                    <option value="Понедельник">Понедельник</option>
+                    <option value="Вторник">Вторник</option>
+                    <option value="Среда">Среда</option>
+                    <option value="Четверг">Четверг</option>
+                    <option value="Пятница">Пятница</option>
+                    <option value="Суббота">Суббота</option>
+                </select>
+            </div>
+            <div class="flex space-x-3 mt-4">
+                <button onclick="submitSchedule()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 py-2 rounded-lg transition">
+                    Добавить
+                </button>
+                <button onclick="closeCreateScheduleModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded-lg transition">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Poll Modal -->
+    <div id="create-poll-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Создать голосование</h3>
+            <div class="space-y-4">
+                <input type="text" id="poll-question" placeholder="Вопрос для голосования" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400">
+                <input type="number" id="poll-duration" placeholder="Длительность (минуты)" value="10" min="1" max="60" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400">
+            </div>
+            <div class="flex space-x-3 mt-4">
+                <button onclick="submitPoll()" class="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded-lg transition">
+                    Создать
+                </button>
+                <button onclick="closeCreatePollModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded-lg transition">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Announcement Modal -->
+    <div id="create-announcement-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Создать объявление</h3>
+            <div class="space-y-4">
+                <input type="text" id="announcement-title" placeholder="Заголовок объявления" class="w-full bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400">
+                <textarea id="announcement-content" placeholder="Текст объявления" class="w-full h-32 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400 resize-none"></textarea>
+                <label class="flex items-center">
+                    <input type="checkbox" id="announcement-important" class="mr-2">
+                    <span class="text-white">Важное объявление</span>
+                </label>
+            </div>
+            <div class="flex space-x-3 mt-4">
+                <button onclick="submitAnnouncement()" class="flex-1 bg-yellow-600 hover:bg-yellow-700 py-2 rounded-lg transition">
+                    Отправить
+                </button>
+                <button onclick="closeCreateAnnouncementModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded-lg transition">
                     Отмена
                 </button>
             </div>
@@ -348,6 +480,16 @@
             document.getElementById('user-group').textContent = `Группа: ${group || 'Неизвестно'}`;
             document.getElementById('user-role').textContent = isCurator ? 'Куратор' : 'Студент';
             document.getElementById('user-group-short').textContent = group || '-';
+            
+            // Показываем/скрываем админ-панель для кураторов
+            const adminTabBtn = document.getElementById('admin-tab-btn');
+            if (adminTabBtn) {
+                if (isCurator) {
+                    adminTabBtn.classList.remove('hidden');
+                } else {
+                    adminTabBtn.classList.add('hidden');
+                }
+            }
         }
 
         async function loadAllData(userId, group) {
@@ -832,6 +974,183 @@
                 option.classList.add('selected');
             }
         });
+
+        // Admin Panel Functions
+        function showCreateScheduleModal() {
+            document.getElementById('create-schedule-modal').classList.remove('hidden');
+        }
+
+        function closeCreateScheduleModal() {
+            document.getElementById('create-schedule-modal').classList.add('hidden');
+            // Очищаем поля
+            document.getElementById('schedule-subject').value = '';
+            document.getElementById('schedule-teacher').value = '';
+            document.getElementById('schedule-room').value = '';
+            document.getElementById('schedule-time').value = '';
+            document.getElementById('schedule-day').value = 'Понедельник';
+        }
+
+        function showCreatePollModal() {
+            document.getElementById('create-poll-modal').classList.remove('hidden');
+        }
+
+        function closeCreatePollModal() {
+            document.getElementById('create-poll-modal').classList.add('hidden');
+            document.getElementById('poll-question').value = '';
+            document.getElementById('poll-duration').value = '10';
+        }
+
+        function showCreateAnnouncementModal() {
+            document.getElementById('create-announcement-modal').classList.remove('hidden');
+        }
+
+        function closeCreateAnnouncementModal() {
+            document.getElementById('create-announcement-modal').classList.add('hidden');
+            document.getElementById('announcement-title').value = '';
+            document.getElementById('announcement-content').value = '';
+            document.getElementById('announcement-important').checked = false;
+        }
+
+        function showManageStudentsModal() {
+            tg.showAlert('Функция управления студентами будет добавлена в следующем обновлении');
+        }
+
+        async function submitSchedule() {
+            const subject = document.getElementById('schedule-subject').value.trim();
+            const teacher = document.getElementById('schedule-teacher').value.trim();
+            const room = document.getElementById('schedule-room').value.trim();
+            const time = document.getElementById('schedule-time').value.trim();
+            const day = document.getElementById('schedule-day').value;
+
+            if (!subject || !teacher || !time) {
+                tg.showAlert('Заполните все обязательные поля');
+                return;
+            }
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('user_id');
+                const group = urlParams.get('group');
+
+                const baseUrl = window.location.origin;
+                const response = await fetch(`${baseUrl}/api/schedule`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        group: group,
+                        subject: subject,
+                        teacher: teacher,
+                        room: room,
+                        time: time,
+                        day: day
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    tg.showAlert('Расписание добавлено!');
+                    closeCreateScheduleModal();
+                    // Перезагружаем данные
+                    await loadAllData(userId, group);
+                } else {
+                    tg.showAlert('Ошибка: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Ошибка добавления расписания:', error);
+                tg.showAlert('Ошибка добавления расписания');
+            }
+        }
+
+        async function submitPoll() {
+            const question = document.getElementById('poll-question').value.trim();
+            const duration = parseInt(document.getElementById('poll-duration').value);
+
+            if (!question) {
+                tg.showAlert('Введите вопрос для голосования');
+                return;
+            }
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('user_id');
+                const group = urlParams.get('group');
+
+                const baseUrl = window.location.origin;
+                const response = await fetch(`${baseUrl}/api/polls`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        group: group,
+                        question: question,
+                        duration: duration
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    tg.showAlert('Голосование создано!');
+                    closeCreatePollModal();
+                    // Перезагружаем данные
+                    await loadAllData(userId, group);
+                } else {
+                    tg.showAlert('Ошибка: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Ошибка создания голосования:', error);
+                tg.showAlert('Ошибка создания голосования');
+            }
+        }
+
+        async function submitAnnouncement() {
+            const title = document.getElementById('announcement-title').value.trim();
+            const content = document.getElementById('announcement-content').value.trim();
+            const important = document.getElementById('announcement-important').checked;
+
+            if (!title || !content) {
+                tg.showAlert('Заполните заголовок и содержание объявления');
+                return;
+            }
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('user_id');
+                const group = urlParams.get('group');
+
+                const baseUrl = window.location.origin;
+                const response = await fetch(`${baseUrl}/api/announcements`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        group: group,
+                        title: title,
+                        content: content,
+                        important: important
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    tg.showAlert('Объявление отправлено!');
+                    closeCreateAnnouncementModal();
+                    // Перезагружаем данные
+                    await loadAllData(userId, group);
+                } else {
+                    tg.showAlert('Ошибка: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Ошибка отправки объявления:', error);
+                tg.showAlert('Ошибка отправки объявления');
+            }
+        }
     </script>
 </body>
 </html>

@@ -508,8 +508,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             [InlineKeyboardButton("👥 Студенты", callback_data=f"students_menu_{group}")],
             [InlineKeyboardButton("❓ Вопросы студентов", callback_data=f"view_questions_{group}")],
             [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{group}")],
-            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")],
-            [InlineKeyboardButton("🔄 Сменить группу", callback_data="change_group")]
+            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")]
         ]
         groups = load_groups()
         group_name = groups.get(group, {}).get("name", group)

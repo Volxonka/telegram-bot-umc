@@ -91,8 +91,18 @@ sys.path.append('..')
 from database import Database
 from config import load_faculties, load_groups, load_curators
 
-# Инициализация базы данных
-db = Database()
+# Инициализация базы данных с правильными путями
+class WebAppDatabase(Database):
+    def __init__(self):
+        # Устанавливаем пути к файлам в корне проекта
+        self.users_file = "../users.json"
+        self.messages_file = "../messages.json"
+        self.students_file = "../students.json"
+        self.polls_file = "../polls.json"
+        self.questions_file = "../questions.json"
+        self.load_data()
+
+db = WebAppDatabase()
 
 # Функции для работы с данными
 def load_personalized_data(user_id: str, group: str, username: str, full_name: str, is_curator: bool) -> Dict[str, Any]:
@@ -100,11 +110,15 @@ def load_personalized_data(user_id: str, group: str, username: str, full_name: s
     try:
         logger.info(f"Загружаем данные для пользователя {user_id} в группе {group}")
         
-        # Инициализируем базу данных если не инициализирована
-        if not hasattr(db, 'users'):
-            logger.info("Инициализируем базу данных...")
-            db.load_data()
-            logger.info("База данных инициализирована")
+        # Всегда перезагружаем данные из файлов
+        logger.info("Перезагружаем базу данных из файлов...")
+        db.load_data()
+        logger.info("База данных перезагружена")
+        
+        # Проверяем что данные загружены
+        if not hasattr(db, 'users') or not hasattr(db, 'messages'):
+            logger.error("База данных не инициализирована после загрузки")
+            return load_demo_data()
         
         # Получаем данные пользователя
         user_data = db.users.get(str(user_id), {})
@@ -121,10 +135,13 @@ def load_personalized_data(user_id: str, group: str, username: str, full_name: s
         group_students = db.get_students(group)
         
         logger.info(f"Данные группы: messages={len(group_messages)}, questions={len(group_questions)}, polls={len(group_polls)}, students={len(group_students)}")
+        logger.info(f"Все сообщения в БД: {list(db.messages.keys())}")
+        logger.info(f"Все вопросы в БД: {list(db.questions.keys())}")
         
         # Получаем расписание группы
         group_schedule = db.get_group_schedule(group)
         logger.info(f"Расписание группы: {len(group_schedule)} элементов")
+        logger.info(f"Пример расписания: {group_schedule[:2] if group_schedule else 'Нет данных'}")
         
         # Преобразуем в формат для веб-приложения
         schedule_data = []
@@ -700,6 +717,143 @@ async def vote_poll(poll_id: int, request: Request):
             
     except Exception as e:
         logger.error(f"Ошибка голосования: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.post("/api/schedule")
+async def create_schedule(request: Request):
+    """Создание расписания (только для кураторов)"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        group = data.get("group")
+        subject = data.get("subject")
+        teacher = data.get("teacher")
+        room = data.get("room")
+        time = data.get("time")
+        day = data.get("day")
+        
+        if not all([user_id, group, subject, teacher, time, day]):
+            return JSONResponse(
+                {"status": "error", "message": "Недостаточно данных для создания расписания"}, 
+                status_code=400
+            )
+        
+        # Проверяем права куратора
+        if not db.is_curator(int(user_id), group):
+            return JSONResponse(
+                {"status": "error", "message": "У вас нет прав для создания расписания"}, 
+                status_code=403
+            )
+        
+        # Создаем сообщение с расписанием
+        schedule_text = f"📅 **{day}**\n\n"
+        schedule_text += f"🕐 **Время:** {time}\n"
+        schedule_text += f"📚 **Предмет:** {subject}\n"
+        schedule_text += f"👨‍🏫 **Преподаватель:** {teacher}\n"
+        if room:
+            schedule_text += f"🏢 **Аудитория:** {room}\n"
+        
+        # Сохраняем в базе данных
+        db.add_message(group, "schedule", schedule_text, int(user_id))
+        
+        return JSONResponse({
+            "status": "success", 
+            "message": "Расписание добавлено",
+            "schedule": {
+                "subject": subject,
+                "teacher": teacher,
+                "room": room,
+                "time": time,
+                "day": day
+            }
+        })
+            
+    except Exception as e:
+        logger.error(f"Ошибка создания расписания: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.post("/api/polls")
+async def create_poll(request: Request):
+    """Создание голосования (только для кураторов)"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        group = data.get("group")
+        question = data.get("question")
+        duration = data.get("duration", 10)
+        
+        if not all([user_id, group, question]):
+            return JSONResponse(
+                {"status": "error", "message": "Недостаточно данных для создания голосования"}, 
+                status_code=400
+            )
+        
+        # Проверяем права куратора
+        if not db.is_curator(int(user_id), group):
+            return JSONResponse(
+                {"status": "error", "message": "У вас нет прав для создания голосования"}, 
+                status_code=403
+            )
+        
+        # Создаем голосование
+        poll_id = db.create_poll(group, int(user_id), duration)
+        
+        return JSONResponse({
+            "status": "success", 
+            "message": "Голосование создано",
+            "poll_id": poll_id,
+            "question": question,
+            "duration": duration
+        })
+            
+    except Exception as e:
+        logger.error(f"Ошибка создания голосования: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.post("/api/announcements")
+async def create_announcement(request: Request):
+    """Создание объявления (только для кураторов)"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        group = data.get("group")
+        title = data.get("title")
+        content = data.get("content")
+        important = data.get("important", False)
+        
+        if not all([user_id, group, title, content]):
+            return JSONResponse(
+                {"status": "error", "message": "Недостаточно данных для создания объявления"}, 
+                status_code=400
+            )
+        
+        # Проверяем права куратора
+        if not db.is_curator(int(user_id), group):
+            return JSONResponse(
+                {"status": "error", "message": "У вас нет прав для создания объявления"}, 
+                status_code=403
+            )
+        
+        # Создаем объявление
+        announcement_text = f"📢 **{title}**\n\n{content}"
+        if important:
+            announcement_text = f"🚨 **ВАЖНО!** 🚨\n\n{announcement_text}"
+        
+        # Сохраняем в базе данных
+        db.add_message(group, "announcement", announcement_text, int(user_id))
+        
+        return JSONResponse({
+            "status": "success", 
+            "message": "Объявление отправлено",
+            "announcement": {
+                "title": title,
+                "content": content,
+                "important": important
+            }
+        })
+            
+    except Exception as e:
+        logger.error(f"Ошибка создания объявления: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 if __name__ == "__main__":

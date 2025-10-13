@@ -1,7 +1,7 @@
 import logging
 import os
 import httpx
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from config import BOT_TOKEN, GROUPS, CURATORS, GROUPS_LEGACY, ADMIN_ID, load_faculties, load_groups, load_curators, save_faculties, save_groups, save_curators
 from webapp_config import get_webapp_url, get_webapp_info
@@ -170,8 +170,36 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
 
-        # Отправляем приветствие и сразу показываем меню
-        await show_main_menu(update, context, user_group)
+        # Генерируем inline-меню (как в show_main_menu)
+        is_curator = db.is_curator(user_id, user_group)
+        if is_curator:
+            keyboard = [
+                [InlineKeyboardButton("📅 Отправить расписание", callback_data=f"schedule_{user_group}")],
+                [InlineKeyboardButton("📢 Сделать объявление", callback_data=f"announce_{user_group}")],
+                [InlineKeyboardButton("🗳 Голосование", callback_data=f"polls_menu_{user_group}")],
+                [InlineKeyboardButton("👥 Студенты", callback_data=f"students_menu_{user_group}")],
+                [InlineKeyboardButton("❓ Вопросы студентов", callback_data=f"view_questions_{user_group}")],
+                [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{user_group}")],
+                [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{user_group}")]
+            ]
+        else:
+            keyboard = [
+                [InlineKeyboardButton("📅 Расписание", callback_data=f"view_schedule_{user_group}")],
+                [InlineKeyboardButton("📢 Объявления", callback_data=f"view_announce_{user_group}")],
+                [InlineKeyboardButton("🗳 Голосование", callback_data=f"student_polls_{user_group}")],
+                [InlineKeyboardButton("❓ Задать вопрос", callback_data=f"ask_question_{user_group}")],
+                [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{user_group}")]
+            ]
+
+        unified_text = (
+            "🎉 Добро пожаловать обратно!\n\n"
+            f"Группа: {group_name}\n"
+            "Статус: Зарегистрирован\n\n"
+            "Выберите действие ниже:"
+        )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(unified_text, reply_markup=reply_markup)
     else:
         # Показываем выбор группы
         await show_group_selection(update, context)
@@ -503,31 +531,37 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
     is_curator = db.is_curator(user_id, group)
     
     if is_curator:
-        # Меню для куратора - внешние кнопки
+        # Меню для куратора
         keyboard = [
-            [KeyboardButton("📅 Отправить расписание"), KeyboardButton("📢 Сделать объявление")],
-            [KeyboardButton("🗳 Голосование"), KeyboardButton("👥 Студенты")],
-            [KeyboardButton("🚀 Веб-приложение")]
+            [InlineKeyboardButton("📅 Отправить расписание", callback_data=f"schedule_{group}")],
+            [InlineKeyboardButton("📢 Сделать объявление", callback_data=f"announce_{group}")],
+            [InlineKeyboardButton("🗳 Голосование", callback_data=f"polls_menu_{group}")],
+            [InlineKeyboardButton("👥 Студенты", callback_data=f"students_menu_{group}")],
+            [InlineKeyboardButton("❓ Вопросы студентов", callback_data=f"view_questions_{group}")],
+            [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{group}")],
+            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")]
         ]
         groups = load_groups()
         group_name = groups.get(group, {}).get("name", group)
         title = f"👨‍🏫 Меню куратора группы {group_name}"
     else:
-        # Меню для студента - внешние кнопки
+        # Меню для студента
         keyboard = [
-            [KeyboardButton("📅 Расписание"), KeyboardButton("📢 Объявления")],
-            [KeyboardButton("🗳 Голосование"), KeyboardButton("❓ Задать вопрос")],
-            [KeyboardButton("🚀 Веб-приложение")]
+            [InlineKeyboardButton("📅 Расписание", callback_data=f"view_schedule_{group}")],
+            [InlineKeyboardButton("📢 Объявления", callback_data=f"view_announce_{group}")],
+            [InlineKeyboardButton("🗳 Голосование", callback_data=f"student_polls_{group}")],
+            [InlineKeyboardButton("❓ Задать вопрос", callback_data=f"ask_question_{group}")],
+            [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{group}")]
         ]
         groups = load_groups()
         group_name = groups.get(group, {}).get("name", group)
         title = f"👨‍🎓 Меню группы {group_name}"
     
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     if update.callback_query:
         try:
-            await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
+        await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
         except Exception:
             # Если не удается отредактировать (например, сообщение уже удалено), отправляем новое
             await context.bot.send_message(
@@ -537,7 +571,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             )
     else:
         try:
-            await update.message.reply_text(title, reply_markup=reply_markup)
+        await update.message.reply_text(title, reply_markup=reply_markup)
         except Exception:
             # Резервный канал на случай таймаута
             await context.bot.send_message(
@@ -889,7 +923,7 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not current_group or current_group != group:
         # Пользователь сменил группу или не зарегистрирован
         try:
-            await query.edit_message_text(
+        await query.edit_message_text(
             "❌ **Ошибка навигации**\n\n"
             "Ваша группа изменилась или вы не зарегистрированы.\n"
             "Используйте /start для повторной регистрации."
@@ -941,20 +975,20 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             media_type = latest_schedule['media_type']
             caption = f"📅 **Расписание группы {get_group_name(group)}**\n\n{latest_schedule['content']}\n\n📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
     
-        keyboard = [
-            [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
-        ]
-        reply_markup = with_home_button(keyboard, group)
-        
-        if media_type == "photo":
-            await context.bot.send_photo(chat_id=query.from_user.id, photo=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
-        elif media_type == "document":
-            await context.bot.send_document(chat_id=query.from_user.id, document=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
-        
-        # Удаляем старое сообщение
-        await query.delete_message()
-        return
-    else:
+    keyboard = [
+                [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
+            ]
+            reply_markup = with_home_button(keyboard, group)
+            
+            if media_type == "photo":
+                await context.bot.send_photo(chat_id=query.from_user.id, photo=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
+            elif media_type == "document":
+                await context.bot.send_document(chat_id=query.from_user.id, document=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
+            
+            # Удаляем старое сообщение
+            await query.delete_message()
+            return
+        else:
             # Обычное текстовое расписание
             text = f"📅 **Расписание группы {get_group_name(group)}**\n\n"
             text += f"{latest_schedule['content']}\n\n"
@@ -963,7 +997,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
             ]
-        reply_markup = with_home_button(keyboard, group)
+            reply_markup = with_home_button(keyboard, group)
             await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
             return
 
@@ -2423,62 +2457,8 @@ async def admin_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Показываем выбор группы для админа
     await show_group_selection(update, context)
 
-async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает нажатия внешних кнопок меню"""
-    text = update.message.text
-    user_id = update.effective_user.id
-    
-    # Получаем группу пользователя
-    user_group = db.get_user_group(user_id)
-    if not user_group:
-        await update.message.reply_text("❌ Сначала выберите группу командой /start")
-        return True
-    
-    # Обрабатываем кнопки куратора
-    if db.is_curator(user_id, user_group):
-        if text == "📅 Отправить расписание":
-            await handle_schedule_input(update, context)
-            return True
-        elif text == "📢 Сделать объявление":
-            await handle_announcement_input(update, context)
-            return True
-        elif text == "🗳 Голосование":
-            await show_polls_menu(update, context, user_group)
-            return True
-        elif text == "👥 Студенты":
-            await show_students_menu(update, context, user_group)
-            return True
-        elif text == "🚀 Веб-приложение":
-            await open_webapp(update, context, user_group)
-            return True
-    
-    # Обрабатываем кнопки студента
-    else:
-        if text == "📅 Расписание":
-            await show_schedule(update, context, user_group)
-            return True
-        elif text == "📢 Объявления":
-            await show_announcements(update, context, user_group)
-            return True
-        elif text == "🗳 Голосование":
-            await show_student_polls(update, context, user_group)
-            return True
-        elif text == "❓ Задать вопрос":
-            await start_question(update, context, user_group)
-            return True
-        elif text == "🚀 Веб-приложение":
-            await open_webapp(update, context, user_group)
-            return True
-    
-    return False
-
 async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Маршрутизирует текст: кнопки меню -> ФИО -> редактирование студентов -> импорт студентов -> голосования -> прочее"""
-    # Сначала проверяем кнопки меню
-    handled = await handle_menu_buttons(update, context)
-    if handled:
-        return
-    
+    """Маршрутизирует текст: ФИО -> редактирование студентов -> импорт студентов -> голосования -> прочее"""
     handled = await handle_full_name_input(update, context)
     if handled:
         return

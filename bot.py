@@ -944,7 +944,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
             ]
-            reply_markup = with_home_button(keyboard, group)
+        reply_markup = with_home_button(keyboard, group)
             
             if media_type == "photo":
                 await context.bot.send_photo(chat_id=query.from_user.id, photo=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
@@ -963,7 +963,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
             ]
-            reply_markup = with_home_button(keyboard, group)
+        reply_markup = with_home_button(keyboard, group)
             await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
             return
 

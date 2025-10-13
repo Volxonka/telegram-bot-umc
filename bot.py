@@ -954,7 +954,7 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Удаляем старое сообщение
         await query.delete_message()
         return
-        else:
+    else:
             # Обычное текстовое расписание
             text = f"📅 **Расписание группы {get_group_name(group)}**\n\n"
             text += f"{latest_schedule['content']}\n\n"

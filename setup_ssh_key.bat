@@ -1,0 +1,19 @@
+@echo off
+echo Добавление SSH-ключа на сервер...
+echo.
+
+REM Создаем временный файл с публичным ключом
+echo ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCvHQS+b4GB0aa/RPRomQZg6cW3hjuHS0fr7PNiW0/+5VBvkw5TSKp4gWtFSZJ92HjHQRAzcfjlwGLdoWzXghKO6mhwD64xch+NiJDiiRyXvO6fzjUSXqCgWH4066G04oC+FEVjdRLaT6fAuaNzG42dIGg8uSJ9N46WR1qwYjk+Uybf5nat0oLjPrsOa93MIBqi8mJzhQ31CBvHNCifW3pxxojv/DCSqyh0v+ixIPUohSwKXJrrJgt+uUGzK2BbcdE57UlomOutyW3BWxrhgfUPUK+U3sPsPzFaGaQ1OP/n/lF9Z2RpzHgkm4HrkArsWUO/1M9qyexm4v8daLsep+mcuqgXW12MoMONCCpL8RzB5q54xKdN/WkkEJWXaoeOdNDTCvBxaYRZTns8HC2MXWKSnuqrm/GjryAU6h+6Gcpn4ttWXj4aAu4jZyq79HSwMM0gJhuPSfnfQE/eYh0LfhSwyBTlvypQN7q64GMLomwUAY3GnNgqTPw6xGF2er27UbIhS8bkGseG5AA8dWtmOq5D9gERJEbTokg+gdcpxdREyHuPemCOcNEsKod5xLxe8ZTb2R2ne3nOWeGn35VRuSe5qiEdChPLn3odE334kxJ2CTK4pnecpoo1bO7DAxgopiZe6nMieVMiCXktlJCTvhQpBdGt1lLhA6upvLZRFKOJ4w== beget_key > temp_key.pub
+
+echo.
+echo Теперь выполните эти команды на сервере:
+echo.
+echo mkdir -p ~/.ssh
+echo cat >> ~/.ssh/authorized_keys ^< temp_key.pub
+echo chmod 600 ~/.ssh/authorized_keys
+echo chmod 700 ~/.ssh
+echo rm temp_key.pub
+echo.
+echo Или скопируйте содержимое файла temp_key.pub в ~/.ssh/authorized_keys
+echo.
+pause

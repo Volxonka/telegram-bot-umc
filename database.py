@@ -468,3 +468,28 @@ class Database:
     def get_all_polls(self):
         """Получает все голосования"""
         return self.polls
+    
+    def clear_announcements(self, group: str) -> int:
+        """Очищает все объявления группы. Возвращает количество удаленных объявлений."""
+        if group not in self.messages:
+            return 0
+        
+        # Подсчитываем объявления до удаления
+        announcements_count = len([m for m in self.messages[group] if m.get('type') == 'announcement'])
+        
+        # Удаляем все объявления
+        self.messages[group] = [m for m in self.messages[group] if m.get('type') != 'announcement']
+        
+        # Сохраняем изменения
+        self.save_messages()
+        
+        return announcements_count
+    
+    def clear_all_announcements(self) -> int:
+        """Очищает все объявления во всех группах. Возвращает общее количество удаленных объявлений."""
+        total_count = 0
+        
+        for group in self.messages:
+            total_count += self.clear_announcements(group)
+        
+        return total_count

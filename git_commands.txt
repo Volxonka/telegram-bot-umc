@@ -1,0 +1,5 @@
+git add .
+git commit -m "Добавлена функция очистки объявлений для админов"
+git push origin main
+
+

@@ -160,16 +160,46 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_group = db.get_user_group(user_id)
     
     if user_group:
-        # Пользователь уже зарегистрирован
+        # Пользователь уже зарегистрирован — отправляем одно сообщение с меню
         groups = load_groups()
         group_name = groups.get(user_group, {}).get("name", user_group)
-        await update.message.reply_text(
-            f"🎉 **Добро пожаловать обратно!**\n\n"
-            f"👥 **Ваша группа:** {group_name}\n"
-            f"✅ **Статус:** Зарегистрирован\n\n"
-            f"Выберите действие в меню ниже: ⬇️"
+
+        # Сохраняем последний экран
+        try:
+            db.set_last_screen(user_id, f"menu_{user_group}")
+        except Exception:
+            pass
+
+        # Генерируем inline-меню (как в show_main_menu)
+        is_curator = db.is_curator(user_id, user_group)
+        if is_curator:
+            keyboard = [
+                [InlineKeyboardButton("📅 Отправить расписание", callback_data=f"schedule_{user_group}")],
+                [InlineKeyboardButton("📢 Сделать объявление", callback_data=f"announce_{user_group}")],
+                [InlineKeyboardButton("🗳 Голосование", callback_data=f"polls_menu_{user_group}")],
+                [InlineKeyboardButton("👥 Студенты", callback_data=f"students_menu_{user_group}")],
+                [InlineKeyboardButton("❓ Вопросы студентов", callback_data=f"view_questions_{user_group}")],
+                [InlineKeyboardButton("📊 Статистика группы", callback_data=f"stats_{user_group}")],
+                [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{user_group}")]
+            ]
+        else:
+            keyboard = [
+                [InlineKeyboardButton("📅 Расписание", callback_data=f"view_schedule_{user_group}")],
+                [InlineKeyboardButton("📢 Объявления", callback_data=f"view_announce_{user_group}")],
+                [InlineKeyboardButton("🗳 Голосование", callback_data=f"student_polls_{user_group}")],
+                [InlineKeyboardButton("❓ Задать вопрос", callback_data=f"ask_question_{user_group}")],
+                [InlineKeyboardButton("🚀 Веб-приложение", callback_data=f"webapp_{user_group}")]
+            ]
+
+        unified_text = (
+            "🎉 Добро пожаловать обратно!\n\n"
+            f"Группа: {group_name}\n"
+            "Статус: Зарегистрирован\n\n"
+            "Выберите действие ниже:"
         )
-        await show_main_menu(update, context, user_group)
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(unified_text, reply_markup=reply_markup)
     else:
         # Показываем выбор группы
         await show_group_selection(update, context)
@@ -423,7 +453,7 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
         # Проверяем, является ли пользователь куратором
         if db.is_curator(user_id, group):
             # Кураторы регистрируются без запроса ФИО
-            db.add_user(user_id, username, group)
+        db.add_user(user_id, username, group)
             await query.edit_message_text(
                 f"🎉 **Круто! Теперь ты часть цивилизации!** 🎉\n\n"
                 f"👨‍🏫 **Роль:** Куратор\n"
@@ -436,7 +466,7 @@ async def handle_group_selection(update: Update, context: ContextTypes.DEFAULT_T
                 f"• ❓ Отвечать на вопросы\n\n"
                 f"**Выбери действие в меню ниже:** ⬇️"
             )
-            await show_main_menu(update, context, group)
+        await show_main_menu(update, context, group)
         else:
             # Для всех студентов запрашиваем ФИО при регистрации
             context.user_data['waiting_for_full_name'] = True
@@ -471,6 +501,7 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("👤 Все пользователи", callback_data="admin_users")],
         [InlineKeyboardButton("❓ Все вопросы", callback_data="admin_questions")],
         [InlineKeyboardButton("📢 Все сообщения", callback_data="admin_messages")],
+        [InlineKeyboardButton("🧹 Очистить объявления", callback_data="admin_clear_announcements")],
         [InlineKeyboardButton("🏠 Главное меню", callback_data="admin_main_menu")]
     ]
     
@@ -530,7 +561,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
     
     if update.callback_query:
         try:
-            await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
+        await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
         except Exception:
             # Если не удается отредактировать (например, сообщение уже удалено), отправляем новое
             await context.bot.send_message(
@@ -540,7 +571,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, gro
             )
     else:
         try:
-            await update.message.reply_text(title, reply_markup=reply_markup)
+        await update.message.reply_text(title, reply_markup=reply_markup)
         except Exception:
             # Резервный канал на случай таймаута
             await context.bot.send_message(
@@ -892,11 +923,11 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not current_group or current_group != group:
         # Пользователь сменил группу или не зарегистрирован
         try:
-            await query.edit_message_text(
-                "❌ **Ошибка навигации**\n\n"
-                "Ваша группа изменилась или вы не зарегистрированы.\n"
-                "Используйте /start для повторной регистрации."
-            )
+        await query.edit_message_text(
+            "❌ **Ошибка навигации**\n\n"
+            "Ваша группа изменилась или вы не зарегистрированы.\n"
+            "Используйте /start для повторной регистрации."
+        )
         except Exception:
             # Если не удается отредактировать, отправляем новое сообщение
             await context.bot.send_message(
@@ -943,8 +974,8 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             file_id = latest_schedule['file_id']
             media_type = latest_schedule['media_type']
             caption = f"📅 **Расписание группы {get_group_name(group)}**\n\n{latest_schedule['content']}\n\n📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
-            
-            keyboard = [
+    
+    keyboard = [
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
             ]
             reply_markup = with_home_button(keyboard, group)
@@ -2309,6 +2340,110 @@ async def admin_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
+async def admin_clear_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Очистка объявлений - выбор группы или всех"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    text = """🧹 **Очистка объявлений**
+
+Выберите что очистить:"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🧹 Очистить ВСЕ объявления", callback_data="admin_clear_all_announcements")],
+        [InlineKeyboardButton("👥 Очистить по группам", callback_data="admin_clear_announcements_by_group")],
+        [InlineKeyboardButton("🔙 Назад в админку", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_clear_all_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Очистка всех объявлений"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    # Очищаем все объявления
+    total_count = db.clear_all_announcements()
+    
+    text = f"""✅ **Объявления очищены!**
+
+Удалено объявлений: **{total_count}**
+
+Все объявления во всех группах были удалены."""
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Назад в админку", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_clear_announcements_by_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Выбор группы для очистки объявлений"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    # Получаем все группы
+    groups = db.get_all_groups()
+    
+    text = """👥 **Выберите группу для очистки объявлений**"""
+    
+    keyboard = []
+    for group_id, group_info in groups.items():
+        group_name = group_info.get("name", group_id)
+        keyboard.append([InlineKeyboardButton(f"🧹 {group_name}", callback_data=f"admin_clear_group_{group_id}")])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="admin_clear_announcements")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def admin_clear_group_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Очистка объявлений конкретной группы"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.edit_message_text("У вас нет прав администратора.")
+        return
+    
+    # Извлекаем group_id из callback_data
+    group_id = query.data.replace("admin_clear_group_", "")
+    group_name = db.get_all_groups().get(group_id, {}).get("name", group_id)
+    
+    # Очищаем объявления группы
+    count = db.clear_announcements(group_id)
+    
+    text = f"""✅ **Объявления группы очищены!**
+
+Группа: **{group_name}**
+Удалено объявлений: **{count}**"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Назад к выбору групп", callback_data="admin_clear_announcements_by_group")],
+        [InlineKeyboardButton("🏠 Админ панель", callback_data="admin_panel")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
 async def admin_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Возврат в главное меню из админки"""
     query = update.callback_query
@@ -2429,6 +2564,10 @@ def main():
     application.add_handler(CallbackQueryHandler(admin_users, pattern="^admin_users$"))
     application.add_handler(CallbackQueryHandler(admin_questions, pattern="^admin_questions$"))
     application.add_handler(CallbackQueryHandler(admin_messages, pattern="^admin_messages$"))
+    application.add_handler(CallbackQueryHandler(admin_clear_announcements, pattern="^admin_clear_announcements$"))
+    application.add_handler(CallbackQueryHandler(admin_clear_all_announcements, pattern="^admin_clear_all_announcements$"))
+    application.add_handler(CallbackQueryHandler(admin_clear_announcements_by_group, pattern="^admin_clear_announcements_by_group$"))
+    application.add_handler(CallbackQueryHandler(admin_clear_group_announcements, pattern="^admin_clear_group_"))
     application.add_handler(CallbackQueryHandler(admin_main_menu, pattern="^admin_main_menu$"))
     
     application.add_handler(MessageHandler((filters.PHOTO | filters.Document.ALL) & ~filters.COMMAND, handle_message))

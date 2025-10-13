@@ -87,7 +87,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Импортируем модули бота для работы с БД
 import sys
-sys.path.append('..')
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database import Database
 from config import load_faculties, load_groups, load_curators
 
@@ -854,6 +855,40 @@ async def create_announcement(request: Request):
             
     except Exception as e:
         logger.error(f"Ошибка создания объявления: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.delete("/api/announcements")
+async def clear_announcements(request: Request):
+    """Очистка объявлений (только для админов)"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        group = data.get("group")  # Если не указана группа, очищаем все
+        
+        # Проверяем права администратора
+        if not db.is_admin(int(user_id)):
+            return JSONResponse({"status": "error", "message": "Недостаточно прав для очистки объявлений"}, status_code=403)
+        
+        if group:
+            # Очищаем объявления конкретной группы
+            count = db.clear_announcements(group)
+            return JSONResponse({
+                "status": "success", 
+                "message": f"Очищено {count} объявлений в группе {group}",
+                "count": count,
+                "group": group
+            })
+        else:
+            # Очищаем все объявления
+            count = db.clear_all_announcements()
+            return JSONResponse({
+                "status": "success", 
+                "message": f"Очищено {count} объявлений во всех группах",
+                "count": count
+            })
+            
+    except Exception as e:
+        logger.error(f"Ошибка очистки объявлений: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 if __name__ == "__main__":

@@ -1407,6 +1407,50 @@ function submitAnnouncement() {
     }
 }
 
+async function clearAllAnnouncements() {
+    // Показываем подтверждение
+    if (!confirm('Вы уверены, что хотите удалить ВСЕ объявления? Это действие нельзя отменить!')) {
+        return;
+    }
+    
+    try {
+        // Получаем данные пользователя из Telegram Web App
+        const tg = window.Telegram?.WebApp;
+        if (!tg || !tg.initDataUnsafe?.user) {
+            showToast('Ошибка: не удалось получить данные пользователя', 'error');
+            return;
+        }
+        
+        const userData = tg.initDataUnsafe.user;
+        
+        // Отправляем запрос на очистку объявлений
+        const response = await fetch('/api/announcements', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: userData.id,
+                group: null // null означает очистку всех объявлений
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showToast(`Успешно очищено ${result.count} объявлений!`, 'success');
+            // Обновляем список объявлений
+            loadAnnouncements();
+        } else {
+            showToast(`Ошибка: ${result.message}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Ошибка очистки объявлений:', error);
+        showToast('Ошибка при очистке объявлений', 'error');
+    }
+}
+
 function submitPoll() {
     const title = document.getElementById('poll-title').value.trim();
     const duration = document.getElementById('poll-duration').value;

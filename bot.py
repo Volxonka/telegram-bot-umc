@@ -941,9 +941,9 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
             media_type = latest_schedule['media_type']
             caption = f"📅 **Расписание группы {get_group_name(group)}**\n\n{latest_schedule['content']}\n\n📅 Обновлено: {latest_schedule.get('timestamp', 'Неизвестно')}"
     
-    keyboard = [
-                [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
-            ]
+        keyboard = [
+            [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
+        ]
         reply_markup = with_home_button(keyboard, group)
         
         if media_type == "photo":

@@ -889,7 +889,7 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not current_group or current_group != group:
         # Пользователь сменил группу или не зарегистрирован
         try:
-        await query.edit_message_text(
+            await query.edit_message_text(
             "❌ **Ошибка навигации**\n\n"
             "Ваша группа изменилась или вы не зарегистрированы.\n"
             "Используйте /start для повторной регистрации."

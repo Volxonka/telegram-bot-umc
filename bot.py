@@ -945,15 +945,15 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🔄 Обновить", callback_data=f"view_schedule_{group}")]
             ]
         reply_markup = with_home_button(keyboard, group)
-            
-            if media_type == "photo":
-                await context.bot.send_photo(chat_id=query.from_user.id, photo=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
-            elif media_type == "document":
-                await context.bot.send_document(chat_id=query.from_user.id, document=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
-            
-            # Удаляем старое сообщение
-            await query.delete_message()
-            return
+        
+        if media_type == "photo":
+            await context.bot.send_photo(chat_id=query.from_user.id, photo=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
+        elif media_type == "document":
+            await context.bot.send_document(chat_id=query.from_user.id, document=file_id, caption=caption, reply_markup=reply_markup, parse_mode='Markdown')
+        
+        # Удаляем старое сообщение
+        await query.delete_message()
+        return
         else:
             # Обычное текстовое расписание
             text = f"📅 **Расписание группы {get_group_name(group)}**\n\n"
